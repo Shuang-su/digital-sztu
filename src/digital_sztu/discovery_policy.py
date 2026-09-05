@@ -248,10 +248,17 @@ class DiscoveryPolicy:
             return
         old, target = urlsplit(current), urlsplit(endpoint)
         old_parts, new_parts = old.path.strip('/').split('/'), target.path.strip('/').split('/')
+        numeric_prefix = {'user': 'github-account:', 'organizations': 'github-account:', 'repositories': 'github-repo:'}
+        numeric = old_parts[0] in numeric_prefix
+        identity_matches = (len(old_parts) == 3 and
+                            op.get('entity_id') == numeric_prefix[old_parts[0]] + old_parts[1]) if numeric else True
+        repository_list = old_parts[0] in ('repos', 'repositories')
         if (old.hostname not in (None, 'api.github.com') or old.username or old.password
-                or len(old_parts) != len(new_parts) or old_parts[-1] != new_parts[-1]
-                or old_parts[0] not in ('repos', 'users', 'orgs')
-                or (old_parts[0] == 'repos') != (new_parts[0] == 'repos')):
+                or old.scheme not in ('', 'https') or old.port not in (None, 443)
+                or (not numeric and len(old_parts) != len(new_parts))
+                or not identity_matches or old_parts[-1] != new_parts[-1]
+                or old_parts[0] not in ('repos', 'users', 'orgs', *numeric_prefix)
+                or repository_list != (new_parts[0] == 'repos')):
             raise ValueError('Pagination endpoint does not belong to this verified list')
         refreshed = urlunsplit(('https', 'api.github.com', '/' + target.path.lstrip('/'), old.query, ''))
         if refreshed != current:
@@ -317,6 +324,10 @@ class DiscoveryPolicy:
         except (ValueError, UnicodeDecodeError):
             op.update(status='restricted', error='decode-error')
             return
+        self.accept_readme(op, rec, text, d)
+
+    def accept_readme(self, op, rec, text, d):
+        """Apply a complete decoded README identically for either public transport."""
         rec['review_readme'] = clean(text, 200000)
         previous_readme_sha = (rec.get('readme_current') or {}).get('sha')
         proofs = []

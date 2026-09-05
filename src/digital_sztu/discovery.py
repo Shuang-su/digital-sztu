@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .discovery_policy import DiscoveryPolicy, SCOPED_CATEGORIES, now, digest, clean, url
 from .discovery_graphql import GraphQLReads, LIST_KINDS, OWNER_AFFILIATIONS
+from .discovery_readmes import ReadmeReads
 from .utils import atomic_write_text, sha256_file
 
 TABLES = ('records', 'edges', 'ops')
@@ -59,7 +60,7 @@ class Rows(MutableMapping):
         self.original.clear()
 
 
-class Research(GraphQLReads, DiscoveryPolicy):
+class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
     def __init__(self, path: Path):
         self.path = path
         if path.is_symlink() or not path.is_file():
@@ -193,6 +194,15 @@ class Research(GraphQLReads, DiscoveryPolicy):
                 if count:
                     continue
             op = self.state['ops'][selected]
+            if op['operation'] == 'readme' and not op.get('readme_rest_required'):
+                count, blocked = self.readme_batch(min(8, limit - processed))
+                processed += count
+                if blocked == 'query-size-adjusted':
+                    continue
+                if blocked:
+                    return {**self.status(), 'processed': processed, 'blocked': blocked}
+                if count:
+                    continue
             if op['operation'] in LIST_KINDS and (op.get('pagination_api') == 'graphql' or not op.get('pages') and not op.get('next_endpoint')):
                 count, blocked = self.list_batch(op['operation'], min(25, limit - processed))
                 processed += count

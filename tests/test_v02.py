@@ -611,6 +611,19 @@ class RestCursorIdentityTests(unittest.TestCase):
         with self.assertRaises(ValueError):self.run.rebase_cursor(op,'users/new/followers?per_page=100')
         self.assertEqual(op['next_endpoint'],'https://api.github.com/users/old/starred?page=2')
 
+    def test_numeric_identity_pagination_keeps_original_page(self):
+        for entity, old, target in (
+            ('github-account:7','user/7/repos','users/renamed/repos'),
+            ('github-account:7','organizations/7/repos','orgs/renamed/repos'),
+            ('github-repo:9','repositories/9/contributors','repos/owner/renamed/contributors'),
+        ):
+            with self.subTest(old=old):
+                op={'id':entity+'|list','entity_id':entity,'next_endpoint':'https://api.github.com/'+old+'?per_page=100&type=all&page=21'}
+                self.run.rebase_cursor(op,target+'?per_page=100')
+                self.assertEqual(op['next_endpoint'],'https://api.github.com/'+target+'?per_page=100&type=all&page=21')
+                op['next_endpoint']='https://api.github.com/'+old.replace('/7/','/8/').replace('/9/','/8/')+'?page=21'
+                with self.assertRaises(ValueError):self.run.rebase_cursor(op,target)
+
     def test_repository_becoming_private_stops_before_content_or_contributors(self):
         sid='github-repo:9';rec={'id':sid,'record_type':'repository','title':'former/public','verification_status':'confirmed','is_fork':False}
         self.run.state['records'][sid]=rec
