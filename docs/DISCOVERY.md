@@ -25,7 +25,9 @@ digital-sztu discover init --legacy-state /path/to/old/state.json --json
 
 账号和仓库使用 GitHub 数字 ID，名字改变不会创建另一对象。账号列表前刷新数字身份，避免把旧登录名的新持有人当作原账号。
 
-README 的批量读取先检查数字身份与公开状态，再从固定默认分支提交选择文件，最后核对完整 UTF-8 字节数和 Git blob 哈希。按 GitHub 的 `.github`、根目录、`docs` 优先顺序处理无歧义的常见文本文件；多版本、特殊格式或不能完整验证的正文转回 REST，仍须人工判定校园关联。数字 ID 形式的旧 REST 分页链接也要与任务实体一致，才可保留原页码恢复。
+README 的批量读取先检查数字身份与公开状态，再从固定默认分支提交选择文件，最后核对完整 UTF-8 字节数和 Git blob 哈希。按 [GitHub 的 README 规则](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)中 `.github`、根目录、`docs` 的优先顺序处理无歧义的常见文本文件；多版本、特殊格式或不能完整验证的正文转回 REST，仍须人工判定校园关联。数字 ID 形式的旧 REST 分页链接也要与任务实体一致，才可保留原页码恢复。
+
+批次缩小到一个账号后，如果仍遇到列表查询超时，可以继续缩小单页数量，最少每页 10 项；游标、已读页和累计数量保持不变。限流响应不采用此重试路径，仍保存服务端退避边界。
 
 ## 证据复核
 

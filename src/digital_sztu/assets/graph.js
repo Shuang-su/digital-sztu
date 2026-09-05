@@ -30,7 +30,7 @@
     const item=data.details[id], panel=$('detail-body');panel.replaceChildren();$('detail-type').textContent=types[nodes.get(id).type];
     element('h2',nodes.get(id).label,panel);prose(item.summary,panel);
     if(item.time){element('h3','事件时间',panel);element('p',`${item.time.start||'未知'}${item.time.end?' — '+item.time.end:''} · ${word(item.time.precision)} · ${word(item.time.certainty)}`,panel);}
-    if(item.validity){element('h3','有效期与核验',panel);element('p',`${item.validity.start||'未知'} — ${item.validity.end||'未知'}\n状态：${word(item.validity.state)} · 核验：${item.validity.verified_at||'未知'}`,panel);}
+    if(item.validity){const v=item.validity;element('h3','有效期',panel);element('p',v.start||v.end?`${v.start||'起始日期未知'} — ${v.end||'结束日期未知'}`:'有效起止日期尚未确定。',panel);if(v.start||v.end||v.state!=='unknown')element('p',`有效期状态：${word(v.state)}`,panel);if(v.verified_at)element('p',`有效期核验：${v.verified_at}`,panel);}
     if(item.body){const body=element('section',undefined,panel,'body-text');prose(item.body,body);}
     for(const claim of item.claims||[]){const c=element('div',undefined,panel,'claim');element('small',`${word(claim.kind)} · ${word(claim.certainty||'unknown')}`,c);prose(claim.text,c);for(const cite of claim.citations){recordButton(cite.source_id,c,`${word(cite.role)} · `);element('small',cite.locator||'来源整体',c);if(cite.note)element('small',cite.note,c);}}
     if(item.locator){element('h3','来源定位',panel);for(const key of ['original_url','archive_url'])if(item.locator[key]){const p=element('p',undefined,panel);externalLink(item.locator[key],key==='original_url'?'打开原始来源 ↗':'打开存档来源 ↗',p);}if(item.dates?.accessed_at)element('small','读取时间：'+item.dates.accessed_at,panel);}

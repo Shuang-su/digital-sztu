@@ -577,6 +577,43 @@ class GraphQLPrivacyTests(unittest.TestCase):
         self.assertEqual(self.run.state['ops'][sid+'|profile']['status'],'pending')
         self.assertEqual(self.run.state['profile_batch_size'],1)
 
+    def test_single_list_timeout_reduces_page_without_losing_cursor(self):
+        import subprocess
+        from types import SimpleNamespace
+        sid=self.account(distance=1)
+        self.run.state['ops'][sid+'|following'].update(pagination_api='graphql',graphql_cursor='saved-page',pages=2,returned=200)
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run',side_effect=subprocess.TimeoutExpired('gh',45)):
+            self.assertEqual(self.run.list_batch('following',1),(0,'query-size-adjusted'))
+        self.assertEqual(self.run.state['list_following_page_size'],50)
+        self.run.close();self.run=Research(self.db)
+        op=self.run.state['ops'][sid+'|following']
+        self.assertEqual((op['graphql_cursor'],op['pages'],op['returned'],op['status']),('saved-page',2,200,'pending'))
+        response={'data':{'a0':{'databaseId':7,'results':{'totalCount':200,'pageInfo':{'hasNextPage':False,'endCursor':None},'nodes':[]}}}}
+        with patch('digital_sztu.discovery.subprocess.run',return_value=SimpleNamespace(stdout=json.dumps(response),returncode=0)) as request:
+            self.run.list_batch('following',1)
+        self.assertIn('first:50,after:"saved-page"',json.loads(request.call_args.kwargs['input'])['query'])
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'],'complete')
+
+    def test_rate_limit_does_not_shrink_query_to_continue_requests(self):
+        from types import SimpleNamespace
+        sid=self.account(distance=1);self.run.save()
+        reply='HTTP/2.0 429 Too Many Requests\nRetry-After: 60\n\n'+json.dumps({'errors':[{'type':'RATE_LIMITED','message':'Rate limited'}]})
+        with patch('digital_sztu.discovery.subprocess.run',return_value=SimpleNamespace(stdout=reply,returncode=1)) as request:
+            self.assertEqual(self.run.list_batch('following',1),(0,'graphql-error'))
+        self.assertEqual(request.call_count,1)
+        self.assertNotIn('list_following_page_size',self.run.state)
+        self.assertIn('graphql',self.run.state['blocked_until'])
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'],'pending')
+
+    def test_imported_page_size_cannot_inject_query_fields(self):
+        self.account(distance=1)
+        self.run.state['list_following_page_size']='100) { unexpected_field }'
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run') as request:
+            with self.assertRaises(ValueError):self.run.list_batch('following',1)
+        request.assert_not_called()
+
 
 class CredentialBoundaryTests(unittest.TestCase):
     def test_public_repository_names_and_blob_hashes_remain_readable(self):

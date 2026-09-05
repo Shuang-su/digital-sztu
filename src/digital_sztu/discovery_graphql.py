@@ -38,6 +38,21 @@ def repository_row(value):
 
 
 class GraphQLReads:
+    def reduce_query_size(self, purpose, size):
+        if size > 1:
+            self.state[purpose + '_batch_size'] = max(1, size // 2)
+            self.audit('graphql-query-size-reduced', purpose=purpose, previous=size,
+                       next=self.state[purpose + '_batch_size'])
+            return True
+        if purpose in ('list_' + kind for kind in LIST_KINDS):
+            page_size = self.state.get(purpose + '_page_size', 100)
+            if page_size > 10:
+                self.state[purpose + '_page_size'] = max(10, page_size // 2)
+                self.audit('graphql-page-size-reduced', purpose=purpose, previous=page_size,
+                           next=self.state[purpose + '_page_size'], reason='keep the same cursor with a smaller page')
+                return True
+        return False
+
     def public_query(self, fields, purpose, size):
         """Only constructed query fields are accepted; no user-provided executable query."""
         budget = self.state.get('rate', {}).get('graphql', {})
@@ -65,9 +80,7 @@ class GraphQLReads:
                 raise ValueError('Unexpected response')
         except (subprocess.TimeoutExpired, ValueError):
             self.audit('graphql-read-error', purpose=purpose, status=status, reason='timeout-or-invalid-response')
-            if size > 1 and (status is None or status >= 500):
-                self.state[purpose + '_batch_size'] = max(1, size // 2)
-                self.audit('graphql-query-size-reduced', purpose=purpose, previous=size, next=self.state[purpose + '_batch_size'])
+            if (status is None or status >= 500) and self.reduce_query_size(purpose, size):
                 self.save()
                 return None, 'query-size-adjusted'
             self.save()
@@ -78,9 +91,7 @@ class GraphQLReads:
             self.state.setdefault('rate', {})['graphql'] = {
                 'remaining': rate['remaining'], 'reset': int(datetime.fromisoformat(rate['resetAt'].replace('Z', '+00:00')).timestamp())}
         errors = result.get('errors', [])
-        if errors and all(error.get('type') == 'RESOURCE_LIMITS_EXCEEDED' for error in errors) and size > 1:
-            self.state[purpose + '_batch_size'] = max(1, size // 2)
-            self.audit('graphql-query-size-reduced', purpose=purpose, previous=size, next=self.state[purpose + '_batch_size'])
+        if errors and all(error.get('type') == 'RESOURCE_LIMITS_EXCEEDED' for error in errors) and self.reduce_query_size(purpose, size):
             self.save()
             return None, 'query-size-adjusted'
         primary = headers.get('x-ratelimit-remaining') == '0' or any(error.get('type') == 'RATE_LIMITED' for error in errors)
@@ -95,9 +106,7 @@ class GraphQLReads:
             return None, 'graphql-error'
         if not data:
             self.audit('graphql-read-error', purpose=purpose, status=status, reason='no-data')
-            if status is not None and status >= 500 and size > 1:
-                self.state[purpose + '_batch_size'] = max(1, size // 2)
-                self.audit('graphql-query-size-reduced', purpose=purpose, previous=size, next=self.state[purpose + '_batch_size'])
+            if status is not None and status >= 500 and self.reduce_query_size(purpose, size):
                 self.save()
                 return None, 'query-size-adjusted'
             self.save()
@@ -129,7 +138,8 @@ class GraphQLReads:
                 self.save()
                 continue
             connection = {'repos': 'repositories', 'stars': 'starredRepositories'}.get(kind, kind)
-            args = 'first:100,after:' + json.dumps(op.get('graphql_cursor'))
+            page_size = max(10, min(100, int(self.state.get('list_' + kind + '_page_size', 100))))
+            args = 'first:' + str(page_size) + ',after:' + json.dumps(op.get('graphql_cursor'))
             if kind == 'repos':
                 args += ',privacy:PUBLIC,orderBy:{field:NAME,direction:ASC}'
                 if not organization:
