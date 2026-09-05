@@ -1,3 +1,2 @@
-"""SZTU Connect deterministic archive tooling."""
-
-__version__ = "0.1.0"
+"""Compatibility namespace for Digital SZTU."""
+from digital_sztu import __version__

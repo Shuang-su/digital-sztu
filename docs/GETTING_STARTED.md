@@ -1,4 +1,4 @@
-# 开始使用 SZTU Connect
+# 开始使用 Digital SZTU
 
 这份指南同时面向记录者和替记录者操作电脑的 Agent。你只需要一种能读写本地文件、执行命令的客户端；不需要先学会 Python、Git 或安装本项目插件。
 
@@ -14,7 +14,7 @@
 |---|---|---|
 | Claude Code | 在本地项目中执行任务 | 根 `CLAUDE.md` 导入 `AGENTS.md`；不能假定自动读取 `AGENTS.md`。[官方说明](https://code.claude.com/docs/en/memory) |
 | WorkBuddy | 选择本地工作空间，使用 Craft 执行模式，或确认计划后执行 | 显式读取本指南；原生 Skill 导入是可选便利入口，不假定自动读取 `AGENTS.md`。[任务说明](https://www.codebuddy.cn/docs/workbuddy/From-Beginner-to-Expert-Guide/Function-Description/Task-Bar)、[Skill 说明](https://open.workbuddy.cn/en/docs/skill) |
-| Codex | 打开本地项目；未装项目插件也可开始 | 读取根 `AGENTS.md`；装有项目插件时可用 `setup-sztu-connect` Skill。[项目指令](https://learn.chatgpt.com/docs/agent-configuration/agents-md)、[插件说明](https://learn.chatgpt.com/docs/plugins) |
+| Codex | 打开本地项目；未装项目插件也可开始 | 读取根 `AGENTS.md`；装有项目插件时可用 `setup-digital-sztu` Skill。[项目指令](https://learn.chatgpt.com/docs/agent-configuration/agents-md)、[插件说明](https://learn.chatgpt.com/docs/plugins) |
 | DeepSeek Harness | 使用官方 `dsh` 的本地工作区和文件、命令工具 | 显式读取本指南，可复用项目指令，但不依赖 `@path` 导入。Developer Preview，作为实验入口。[介绍](https://www.deepseek.com/harness/en/)、[指令加载](https://github.com/deepseek-ai/deepseek-harness/blob/master/packages/context/agent-instructions/README.md) |
 | Kimi Code | 使用本地 CLI 会话 | 显式读取本指南，可复用标准 Skill；不要用客户端 `/init` 覆盖项目规则。[快速上手](https://www.kimi.ai/zh-hans/help/kimi-code/cli-getting-started)、[Skill 说明](https://moonshotai.github.io/kimi-code/en/customization/skills) |
 | ZCode | 先选择项目工作区，再发送任务 | 使用当前工作区根 `AGENTS.md`，不假定递归加载或 `@import`。无项目会话不能直接转为项目会话时，新建项目任务并接续。[官方说明](https://zcode.z.ai/en/docs/agents) |
@@ -37,8 +37,8 @@
 ### 1. 确认本机与工作副本
 
 1. 确认客户端名称、版本、执行模式、操作系统、架构、工作目录和写入权限。把客户端显示的工作文件夹与命令实际返回的路径对应起来；WSL、容器、云端任务或沙箱不自动等于宿主机。不能确认时，先引导切换到本地模式，不在未知环境里安装。
-2. 用户已经打开完整的 SZTU Connect 工作副本时，先检查 `git status --short --branch`、`git remote -v`、`git rev-parse --show-toplevel` 和根 `AGENTS.md`。保留当前分支、未提交内容和既有远端；不要自动拉取、切分支或重新克隆覆盖它。
-3. 还没有工作副本时，在用户选定的父目录下选择独立的 `sztu-connect` 目录，用公开 HTTPS 地址 `https://github.com/Shuang-su/sztu-connect.git` 克隆，不要求 GitHub 登录。非空目录若不是正确副本，停止并请用户选择新目录。当前源码存档使用普通 Git，clone 会包含这些文件；先检查目标卷空间，不需要 Git LFS。只有所选版本确实使用 LFS 时，才在该次 clone 进程设置 `GIT_LFS_SKIP_SMUDGE=1`，避免取用不适用平台的大文件，不修改全局配置。
+2. 用户已经打开完整的 Digital SZTU 工作副本时，先检查 `git status --short --branch`、`git remote -v`、`git rev-parse --show-toplevel` 和根 `AGENTS.md`。保留当前分支、未提交内容和既有远端；不要自动拉取、切分支或重新克隆覆盖它。
+3. 还没有工作副本时，在用户选定的父目录下选择独立的 `digital-sztu` 目录，用公开 HTTPS 地址 `https://github.com/Shuang-su/digital-sztu.git` 克隆，不要求 GitHub 登录。非空目录若不是正确副本，停止并请用户选择新目录。当前源码存档使用普通 Git，clone 会包含这些文件；先检查目标卷空间，不需要 Git LFS。只有所选版本确实使用 LFS 时，才在该次 clone 进程设置 `GIT_LFS_SKIP_SMUDGE=1`，避免取用不适用平台的大文件，不修改全局配置。
 4. 缺少 Git 时先完成下一节的 Git 准备，再克隆。克隆后读取根 `AGENTS.md` 与本地本指南，记录 checkout SHA。不要把插件安装目录或缓存当作记录仓库，也不要仅下载一个脚本就跳过仓库核对。
 5. 后续命令都在这个工作副本运行，并向初始化助手显式传入绝对 `--root`。路径有中文或空格时作为一个参数传入，不拼接未引用的 shell 命令。若旧副本没有本指南或助手，先说明需要更新；不要用缓存中的新文件静默覆盖旧分支。
 
@@ -58,15 +58,15 @@
 macOS：
 
 ```bash
-python3 scripts/bootstrap.py --root "/用户选定目录/sztu-connect" --check --json
-python3 scripts/bootstrap.py --root "/用户选定目录/sztu-connect" --json
+python3 scripts/bootstrap.py --root "/用户选定目录/digital-sztu" --check --json
+python3 scripts/bootstrap.py --root "/用户选定目录/digital-sztu" --json
 ```
 
 Windows PowerShell：
 
 ```powershell
-python scripts/bootstrap.py --root "C:\用户选定目录\sztu-connect" --check --json
-python scripts/bootstrap.py --root "C:\用户选定目录\sztu-connect" --json
+python scripts/bootstrap.py --root "C:\用户选定目录\digital-sztu" --check --json
+python scripts/bootstrap.py --root "C:\用户选定目录\digital-sztu" --json
 ```
 
 助手使用纯 Python 标准库启动，依赖装在工作副本的 `.venv/` 中。它按 `requirements.lock` 安装，再通过 `pip install --no-deps -e .` 安装当前 checkout；不要求激活环境，不安装其他 Agent 客户端，不改全局 Python 包。Linux 使用 [README 手动安装](../README.md#开发者手动安装)，助手会返回 `not_applicable`，不会假称完成自动配置。
@@ -166,7 +166,7 @@ print(report)
 
 展示建议后，请用户选一件继续；用户也可以直接提出其他事件。得到记录请求后读取 `skills/record-campus-event/SKILL.md`；聊天材料按 `skills/map-chat-to-events/SKILL.md` 保留原始定位，需要核查时使用 `skills/fact-check-event/SKILL.md`。仅查看建议或核查线索不等于要求创建记录。
 
-先检查既有记录与来源，不猜日期或身份。核对每条论断的来源、公开范围、关联与不确定性，再按现有内容工作流创建或修改记录，运行工作副本的 `sztu-connect check --json`。材料和可复制提示词见 [README](../README.md#准备一条记录)。初始化、材料读取与历史使用均不自动授权账号登录、push、PR 或发布。
+先检查既有记录与来源，不猜日期或身份。核对每条论断的来源、公开范围、关联与不确定性，再按现有内容工作流创建或修改记录，运行工作副本的 `digital-sztu check --json`。材料和可复制提示词见 [README](../README.md#准备一条记录)。初始化、材料读取与历史使用均不自动授权账号登录、push、PR 或发布。
 
 ## 继续初始化与故障恢复
 
@@ -208,8 +208,8 @@ print(report)
 
 1. 检查 GitHub CLI 是否可用，然后核对 `gh auth status --hostname github.com`。已有有效授权就复用；失败先区分网络问题和确实未登录，不擅自退出其他账号。
 2. 需要登录时使用浏览器流程 `gh auth login --hostname github.com --git-protocol https --web`，由用户完成验证。不要求把 Token 贴入聊天，也不把授权输出存入项目日志。[官方登录说明](https://cli.github.com/manual/gh_auth_login)
-3. 核对 `git remote -v`、目标仓库和当前账号的权限。可选运行 `python scripts/bootstrap.py --root "<真实路径>" --check --github --json`：这个额外开关仅查询上游 `Shuang-su/sztu-connect` 的权限，返回 `branch` / `fork` / `check_permissions` 建议，不创建远端或证明其他仓库的权限。目标不是该上游时，Agent 应单独读取目标仓库权限。
-4. 有写权限，在确认的工作副本使用工作分支；没有写权限，先查找当前账号已有 Fork。确需新建 Fork 时，在同步 / 贡献请求的范围内确认目标所有者，用 `gh repo fork Shuang-su/sztu-connect --clone=false --remote=false` 创建，随后读回结果确认。不要重复建 Fork，也不要让默认参数自动重命名 `origin`。[Fork 文档](https://cli.github.com/manual/gh_repo_fork)
+3. 核对 `git remote -v`、目标仓库和当前账号的权限。可选运行 `python scripts/bootstrap.py --root "<真实路径>" --check --github --json`：这个额外开关仅查询上游 `Shuang-su/digital-sztu` 的权限，返回 `branch` / `fork` / `check_permissions` 建议，不创建远端或证明其他仓库的权限。目标不是该上游时，Agent 应单独读取目标仓库权限。
+4. 有写权限，在确认的工作副本使用工作分支；没有写权限，先查找当前账号已有 Fork。确需新建 Fork 时，在同步 / 贡献请求的范围内确认目标所有者，用 `gh repo fork Shuang-su/digital-sztu --clone=false --remote=false` 创建，随后读回结果确认。不要重复建 Fork，也不要让默认参数自动重命名 `origin`。[Fork 文档](https://cli.github.com/manual/gh_repo_fork)
 5. 保留现有 `origin`、`upstream`。优先按明确的远端名或目标 URL 操作，添加新远端前检查名字是否占用；修改或替换已有远端必须先确认。明确区分个人 Fork 和项目上游。
 6. 报告准备提交的文件、目标分支与仓库；commit、push、PR、merge 按当前用户要求及项目规则分别处理。初始化及浏览器授权不是自动发布许可。
 
@@ -226,3 +226,9 @@ print(report)
 - **继续使用**：重新打开同一工作副本后如何继续，邀请用户选择哪件事，以及该记录尚缺的材料。
 
 没有完成安装窗口、工具只下载了安装包、仅在隔离系统中成功、或只确认了文档格式，都不能写成“本机全部部署成功”。当前版本没有网站、RAG 检索 / 问答、MCP / WebMCP 服务或自动发布能力。
+
+## v0.2 兼容与档案阅读
+
+新安装使用 `digital-sztu` 包、`digital_sztu` 模块与 `setup-digital-sztu` Skill。旧的 `sztu-connect` 命令、`python -m sztu_connect` 和 `setup-sztu-connect` Skill 均转到同一实现；升级不会改写已有记录 ID。保留原工作副本的内容，在自己的环境中重新安装当前包即可。
+
+运行 `digital-sztu graph --open` 可浏览本地交互档案；`data/generated/catalog/README.md` 可直接通过 GitHub、编辑器或 Obsidian 阅读。普通浏览不依赖 Node.js。链式来源研究另见 [来源普查](DISCOVERY.md)，研究候选不自动进入正式图谱。

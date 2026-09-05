@@ -13,7 +13,7 @@
 | GitHub Actions macOS，`macos-26-arm64`，Python 3.13.14 | `macos-latest` 实际运行 38 项 bootstrap 测试与 7 项报告边界测试 | bootstrap 全部通过；边界测试通过 6 项、按平台跳过 Windows junction 1 项。 |
 | GitHub Actions Ubuntu 24.04，Python 3.13.15 | 内容 / 源码存档检查、117 项单元测试、构建及派生文件无差异检查 | 通过，单元测试按平台跳过 2 项。Linux 手动 CLI 路径保留；bootstrap 仍为 `not_applicable`，不宣称自动安装受支持。 |
 
-首轮远端证据为 [PR #4 的 Checks](https://github.com/Shuang-su/sztu-connect/actions/runs/33733219921)，对应提交 `85b48d535325f13a5378699726a7e5e8fede51b6`。上述版本来自该次实际日志；后续 runner 更新不自动沿用此版本结论，最终合并状态与检查见 [PR #4](https://github.com/Shuang-su/sztu-connect/pull/4)。
+首轮远端证据为 [PR #4 的 Checks](https://github.com/Shuang-su/digital-sztu/actions/runs/33733219921)，对应提交 `85b48d535325f13a5378699726a7e5e8fede51b6`。上述版本来自该次实际日志；后续 runner 更新不自动沿用此版本结论，最终合并状态与检查见 [PR #4](https://github.com/Shuang-su/digital-sztu/pull/4)。
 
 自动化包含：工作副本与目录冲突、缺失 / 旧环境、固定依赖安装失败后恢复、中文及空格路径、只读模式无写入、符号链接 / junction 和输出越界、下载失败、LFS 指针、哈希错误、安装包与应用状态区分、GitHub 可选与权限路由、示例恢复及已有内容保护。
 
@@ -29,7 +29,7 @@
 
 ## 首次探索的合成试跑
 
-使用 `tests/onboarding_exploration_cases.py` 生成隔离夹具，由独立 Agent 从案例请求和工作副本的 `setup-sztu-connect` Skill 开始执行。环境、文件、消息、时间和 Computer History 状态均为合成数据；Computer Use / History 的工具响应只模拟，不连接真实客户端能力。安装与核心示例在案例中已设为就绪，真实核心流程另由上表验证。
+使用 `tests/onboarding_exploration_cases.py` 生成隔离夹具，由独立 Agent 从案例请求和工作副本的 `setup-digital-sztu` Skill 开始执行。环境、文件、消息、时间和 Computer History 状态均为合成数据；Computer Use / History 的工具响应只模拟，不连接真实客户端能力。安装与核心示例在案例中已设为就绪，真实核心流程另由上表验证。
 
 报告路径回归覆盖中文及空格路径、检查不创建父目录、已有报告与原件不变、文件 / 父目录链接、悬空链接和工作副本外路径。Windows junction 已在上述 Windows CI 实际执行并通过；macOS 按平台跳过，不将此结果扩展为用户客户端或宿主机完整验收。
 

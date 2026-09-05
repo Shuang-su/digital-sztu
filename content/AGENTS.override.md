@@ -10,6 +10,6 @@
 - 真实姓名、公开职务与事实必要上下文要求原样计入仓库。
 - `privacy.risk: prohibited` 的候选可以写入 `content/`。
 - 明确属于虚构、合成或测试的材料只放在 `examples/` 或 `.work/`，不得进入正式 Event／Source 索引；保留原材料中的免责声明。
-- 关系在 Event 中写一次；反向关系和目录由 `sztu-connect build` 生成。
+- 关系在 Event 中写一次；反向关系和目录由 `digital-sztu build` 生成。
 - Markdown 可用 `[[id|label]]` 导航，但事实关系仍写入 Event JSON。
-- 修改后运行 `sztu-connect check --json`，检查 backlinks 与 directories。
+- 修改后运行 `digital-sztu check --json`，检查 backlinks 与 directories。

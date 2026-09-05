@@ -2,7 +2,7 @@
 
 ## 目标
 
-`sztu-connect build` 与 `sztu-connect export-knowledge` 把 Event、Node、Collection 与 Source 生成供应商无关 JSONL。它可供全文搜索、RAG、图检索或任意向量数据库消费，但核心仓库不依赖远程服务、模型或 API key。
+`digital-sztu build` 与 `digital-sztu export-knowledge` 把 Event、Node、Collection 与 Source 生成供应商无关 JSONL。它可供全文搜索、RAG、图检索或任意向量数据库消费，但核心仓库不依赖远程服务、模型或 API key。
 
 ```text
 data/generated/knowledge/chunks.jsonl
@@ -38,3 +38,9 @@ embedding 默认写入：
 ## 核查边界
 
 向量相似度只发现候选。任何新 Event 或回答都必须回到 `event_id`、`claim_id`、Citation locator 与 Source。`privacy.indexing: exclude` 和 `privacy.risk: prohibited` 的对象不会进入公共知识 JSONL。
+
+## v0.2 扩展
+
+Knowledge Record 与 Event 共用证据结构，作为 `owner_type: knowledge` 进入知识 JSONL。有效期与核验时间保留在时间元数据中，未知值不补齐。新导出格式是 `digital-sztu-knowledge-jsonl@0.2`；已有 Event 等记录的 chunk URN 保持原 `sztu-connect` 命名空间，新 Knowledge Record 使用 `digital-sztu` 命名空间。内容变动通过哈希识别，不因项目更名改变已有稳定 ID。
+
+导出与图谱、SVG、Markdown 阅读页使用同一公开投影和内容版本。`indexing: exclude`、受限处理和禁止公开的内容不会进入这份导出；原始材料的保存方式与检索输入分别管理。

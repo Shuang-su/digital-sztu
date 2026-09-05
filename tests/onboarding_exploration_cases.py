@@ -28,11 +28,11 @@ def build_cases(destination: Path) -> Path:
     for relative in (
         "README.md", "AGENTS.md", "CLAUDE.md", "connect.config.json", ".gitignore",
         ".codex-plugin/plugin.json", "scripts/bootstrap.py",
-        "src/sztu_connect/__init__.py", "src/sztu_connect/utils.py",
+        "src/digital_sztu/__init__.py", "src/digital_sztu/utils.py",
         "docs/GETTING_STARTED.md", "docs/CHAT_IMPORT.md", "docs/DATA_MODEL.md",
         "docs/HISTORY_FORMS.md", "docs/FACT_CHECKING.md", "docs/PRIVACY.md",
         "docs/VECTOR_KNOWLEDGE.md", "importers/README.md", "importers/registry.json",
-        "skills/setup-sztu-connect/SKILL.md", "skills/map-chat-to-events/SKILL.md",
+        "skills/setup-digital-sztu/SKILL.md", "skills/map-chat-to-events/SKILL.md",
         "skills/record-campus-event/SKILL.md", "skills/fact-check-event/SKILL.md",
     ):
         target = shared / relative

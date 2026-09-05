@@ -1,44 +1,31 @@
 # 架构
 
-## 三层
+## 正式记录
 
-### 1. 真源层
+JSON／Markdown 是唯一真源，保存在可迁移的普通目录中：
 
-- `content/events/`：唯一事件真源；时间、Claim、Citation 与正向关系都从这里出发
-- `content/nodes/`：人物、组织、地点、制度与主题目录节点，不重复保存事件
-- `content/collections/`：编年体、纪传体、典制体和专题组织
-- `sources/records/`：来源、定位、权利与独立性元数据
+- `content/events/`：有时间坐标的历史事件。
+- `content/knowledge/`：项目资料、课程资源与持续性校园信息；有效期和最近核验时间与事件发生时间分别表达。
+- `content/nodes/`：人物、组织、地点、制度与主题的目录身份。
+- `content/collections/`：对 Event 与 Knowledge Record 的组织，不复制事实。
+- `sources/records/`：来源、原文定位、权利与独立性元数据。
 
-真源层只保存人类或工具明确写入的 Event、Node、Source、Collection、论断和 Event 正向关系。Node 是目录身份，不另写历史事实关系。反向关系、各目录的事件列表、排序值、检索 chunk 与 embedding 都不是事实真源。
+Event 与 Knowledge Record 共用 `record-common.schema.json` 中的 Claim、Citation、Link 和 provenance 契约。新记录使用 v0.2，v0.1 仍可读取。历史 ID、原始记录和已有知识 chunk ID 不因项目更名改变。新旧 Python 模块与命令使用同一实现，避免两条实现路径逐步偏离。
 
-### 2. 派生层
+## 可重建阅读层
 
-`sztu-connect build` 确定性生成：
+`digital-sztu build` 验证模型与引用后，在统一公开筛选结果上生成时间线、反向链接、分类目录、图谱、知识 JSONL、SVG 预览与 Markdown 阅读页。正文和正式记录共同决定 `dataset_revision`；派生内容不记录构建时间、用户名、机器名或绝对路径。
 
-- `data/generated/timeline.json`
-- `data/generated/backlinks.json`
-- `data/generated/graph.json`
-- `data/generated/collections.json`
-- `data/generated/directories/*.json`
-- `data/generated/knowledge/chunks.jsonl`
-- `data/generated/knowledge/manifest.json`
+`archive.json` 为精简查看器提供节点、关系、正文与来源详情。相同资源被打包进本地和 Pages 的自包含 HTML，浏览器不读取研究数据库，不运行投稿材料中的代码。JSONL 是供应商无关的检索输入，embedding 默认保存在 `.work/`，不是真源。
 
-同一提交在不同机器上应生成相同字节；生成物不写构建时间、用户名、主机名或绝对路径。
+## 私有研究执行层
 
-### 3. 本地层
+`digital-sztu discover` 和共用 `discover-campus-sources` Skill 负责来源发现。SQLite 用于执行状态、队列、分页、研究关系和审计日志；每页新记录、边和下一页游标在同一事务提交。进程级文件锁避免多个写入者；中断后重放未提交页，稳定 ID 与唯一队列键负责去重。
 
-`.work/` 保存本地材料清单、临时报告、聊天渲染和 embedding sidecar。它不进入 Git。`.codex-work/` 只用于 Agent 的缓存、下载与验证环境。
+研究数据库只位于 `.work/`，可导出 JSONL、研究图谱和报告，不能直接送入档案构建。普查完成后，经过证据复核的成果经隔离校验与可恢复写入事务进入正式 JSON／Markdown。研究实体与正式记录之间保留映射。SQLite 的便利性不改变正式档案的数据格式。
 
-## 去中心化边界
+## 本地与发布
 
-- 任意 clone 或 fork 都能离线验证、构建和导出数据。
-- 数据格式不依赖特定 GitHub 组织、账号、云服务、向量数据库或 embedding 模型。
-- 仓库不定义具有裁决权的固定治理角色。贡献者身份由提交历史和可选 provenance 记录表达。
-- 不同 fork 可以保留不同材料与呈现方式；通过稳定 ID、来源引用和哈希交换记录。
-- GitHub Issue 与 Pull Request 是可选协作入口，不是数据模型的组成部分。
+`.work/` 保存本地材料清单、研究、HTML 与 embedding；`.codex-work/` 保存 Agent 缓存和验证产物。两者不进入 Git。
 
-## Agent/plugin
-
-`.codex-plugin/plugin.json` 把仓库声明为 Codex plugin；`skills/` 是唯一 skill 真源；`sztu-connect` CLI 提供确定性操作。v0.1 不注册 MCP server、App 或 WebMCP 工具。
-
-Agent 负责按用户意图整理和解释，CLI 负责 Schema、时间、引用、隐私分级、反向链接和生成物校验。网页、文档、聊天与检索结果始终被视为不可信数据，而不是 Agent 指令。
+任意 clone 或 fork 都能验证和重建。GitHub 是可选协作与托管入口，不定义档案模型；Pages 仅部署允许公开的静态产物。Agent 负责基于来源整理与解释，CLI 负责确定性校验、转换与构建。WebMCP、云端向量库和问答服务仍未实现。

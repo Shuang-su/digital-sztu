@@ -8,13 +8,13 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-from sztu_connect.build import build_indexes, export_knowledge
-from sztu_connect.chat import load_messages, render_chat
-from sztu_connect.cli import _work_output
-from sztu_connect.ingest import create_manifest
-from sztu_connect.privacy import scan_privacy
-from sztu_connect.utils import ensure_within, find_repo_root, load_json, sha256_file
-from sztu_connect.validation import validate_repository
+from digital_sztu.build import build_indexes, export_knowledge
+from digital_sztu.chat import load_messages, render_chat
+from digital_sztu.cli import _work_output
+from digital_sztu.ingest import create_manifest
+from digital_sztu.privacy import scan_privacy
+from digital_sztu.utils import ensure_within, find_repo_root, load_json, sha256_file
+from digital_sztu.validation import validate_repository
 
 
 ROOT = find_repo_root(Path(__file__).resolve())
@@ -61,14 +61,14 @@ class RepositoryTests(unittest.TestCase):
             shutil.copyfile(ROOT / "connect.config.json", root / "connect.config.json")
             result = validate_repository(root)
             self.assertTrue(result["ok"], result["errors"])
-            self.assertEqual(result["counts"], {"event": 0, "node": 0, "collection": 0, "source": 0})
+            self.assertEqual(result["counts"], {"knowledge": 0, "event": 0, "node": 0, "collection": 0, "source": 0})
 
     def test_minimal_example_validates(self) -> None:
         repo = ExampleRepository()
         try:
             result = validate_repository(repo.root)
             self.assertTrue(result["ok"], result["errors"])
-            self.assertEqual(result["counts"], {"event": 1, "node": 5, "collection": 4, "source": 1})
+            self.assertEqual(result["counts"], {"knowledge": 0, "event": 1, "node": 5, "collection": 4, "source": 1})
         finally:
             repo.close()
 
@@ -719,7 +719,7 @@ class RepositoryTests(unittest.TestCase):
         finally:
             repo.close()
 
-    def test_prohibited_records_are_exported(self) -> None:
+    def test_prohibited_records_are_excluded_from_public_export(self) -> None:
         repo = ExampleRepository()
         try:
             event = repo.event()
@@ -729,9 +729,9 @@ class RepositoryTests(unittest.TestCase):
             export = export_knowledge(repo.root, repo.root / ".work/knowledge")
             self.assertTrue(export["ok"], export)
             chunks = (repo.root / ".work/knowledge/chunks.jsonl").read_text(encoding="utf-8")
-            self.assertIn(event["id"], chunks)
-            self.assertIn('"risk":"prohibited"', chunks)
-            self.assertIn('"indexing":"exclude"', chunks)
+            self.assertNotIn(event["id"], chunks)
+            self.assertNotIn('"risk":"prohibited"', chunks)
+            self.assertNotIn('"indexing":"exclude"', chunks)
         finally:
             repo.close()
 
@@ -757,17 +757,17 @@ class RepositoryTests(unittest.TestCase):
         output = render_chat(messages, "Example")
         self.assertNotIn("<script>alert(1)</script>", output)
         self.assertIn("&lt;script&gt;", output)
-        self.assertIn("SZTU Connect／技大时空", output)
+        self.assertIn("Digital SZTU／技大时空", output)
         self.assertNotIn("🐔🧱时空", output)
 
     def test_name_contract(self) -> None:
         config = load_json(ROOT / "connect.config.json")["project"]
-        self.assertEqual(config["display_name"], "SZTU Connect")
-        self.assertEqual(config["plain_text_name"], "SZTU Connect")
-        self.assertEqual(config["accessible_name"], "技大时空")
+        self.assertEqual(config["display_name"], "Digital SZTU")
+        self.assertEqual(config["plain_text_name"], "Digital SZTU")
+        self.assertEqual(config["accessible_name"], "Digital SZTU")
 
         plugin = load_json(ROOT / ".codex-plugin" / "plugin.json")
-        self.assertEqual(plugin["interface"]["displayName"], "SZTU Connect")
+        self.assertEqual(plugin["interface"]["displayName"], "Digital SZTU")
 
 
 if __name__ == "__main__":

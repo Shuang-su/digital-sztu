@@ -1,0 +1,4 @@
+interface:
+  display_name: "初始化 Digital SZTU"
+  short_description: "准备本地环境和工具，在授权后探索材料与历史并提供首条记录建议"
+  default_prompt: "使用 $setup-digital-sztu 初始化，借助可用 Computer Use 配置工具；我授权清点桌面、下载、文档及所选材料后分批阅读，启用可用 Computer History 查全部保留历史并建议选题。"

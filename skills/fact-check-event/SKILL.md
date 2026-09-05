@@ -1,11 +1,11 @@
 ---
 name: fact-check-event
-description: Trace SZTU Connect event claims to source locators, compare support and counterevidence, check time and identity uncertainty, and produce a fact-check matrix. Use for 核查, 纠错, 争议, duplicate-event, or provenance questions; remain read-only unless the user asks to apply corrections.
+description: Trace Digital SZTU event claims to source locators, compare support and counterevidence, check time and identity uncertainty, and produce a fact-check matrix. Use for 核查, 纠错, 争议, duplicate-event, or provenance questions; remain read-only unless the user asks to apply corrections.
 ---
 
 # Fact-check an event
 
-1. Work in the user-selected SZTU Connect clone. If an Event exists, read it, every cited Source, linked Event/Node, and generated backlinks. If the user only supplies a statement or provenance question, give a limited initial assessment from the available material; do not invent records or locators to satisfy this workflow. Use the pinned local CLI environment from `README.md` only when a CLI check is needed.
+1. Work in the user-selected Digital SZTU clone. If an Event exists, read it, every cited Source, linked Event/Node, and generated backlinks. If the user only supplies a statement or provenance question, give a limited initial assessment from the available material; do not invent records or locators to satisfy this workflow. Use the pinned local CLI environment from `README.md` only when a CLI check is needed.
 2. For each Claim report: text, kind, certainty, Event time, supporting Source locators, contradicting Source locators, independence groups, and unresolved questions.
 3. Count only `supports` Citations from different non-empty independence groups as corroboration. Do not count copies, context, counterevidence, OCR, AI summaries, or vector search results as independent sources.
    For chat Sources, read [the chat workflow](../../docs/CHAT_IMPORT.md). Check the supplied export against its recorded SHA-256 when the original is available, then resolve each citation to the original message, time and surrounding context. Distinguish server IDs, database-local IDs and exporter-generated indexes; keep large IDs as strings. A missing original is an evidence gap, not a reason to invent a locator. Re-exports of one conversation belong to the same independence group.

@@ -24,4 +24,4 @@ MCP、WebMCP、云端向量库、网页归档和部署在有真实需求与可�
 
 在不改变 Event 历史语义的前提下，项目将逐步覆盖校园历史、校园档案、校园信息和校园知识，并建设社区可治理、Agent 可协作、证据优先、时间感知且本地可重建的知识基础设施。
 
-这是长期方向，不表示 Knowledge Record、全文或混合检索、RAG、网站和持续信息监测已经实现。完整的阶段拆分、信任边界与验收条件见 [长期路线 Issue #1](https://github.com/Shuang-su/sztu-connect/issues/1)。
+这是长期方向，不表示 Knowledge Record、全文或混合检索、RAG、网站和持续信息监测已经实现。完整的阶段拆分、信任边界与验收条件见 [长期路线 Issue #1](https://github.com/Shuang-su/digital-sztu/issues/1)。

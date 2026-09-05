@@ -28,10 +28,10 @@ from urllib.request import urlopen
 sys.dont_write_bytecode = True
 PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT / "src"))
-from sztu_connect.utils import ensure_within, load_json, sha256_file, write_json
+from digital_sztu.utils import ensure_within, load_json, sha256_file, write_json
 
 
-UPSTREAM = "Shuang-su/sztu-connect"
+UPSTREAM = "Shuang-su/digital-sztu"
 GUIDE = "docs/GETTING_STARTED.md"
 STATE = ".work/onboarding/status.json"
 PROBE = """
@@ -42,7 +42,7 @@ for name in json.loads(sys.argv[1]):
         packages[name] = m.version(name)
     except m.PackageNotFoundError:
         packages[name] = None
-spec = importlib.util.find_spec("sztu_connect")
+spec = importlib.util.find_spec("digital_sztu")
 print(json.dumps({"version": list(sys.version_info[:3]), "prefix": sys.prefix,
                   "source": spec.origin if spec else None,
                   "pip": importlib.util.find_spec("pip") is not None,
@@ -171,7 +171,7 @@ def inspect_runtime(root: Path) -> dict[str, Any]:
     if not executable.is_file():
         return stage("pending_user", "需要创建或修复项目虚拟环境。", reason="missing_venv")
     info = command_json([str(executable), "-B", "-c", PROBE,
-                         json.dumps([*pins, "sztu-connect"])], root)
+                         json.dumps([*pins, "digital-sztu"])], root)
     if tuple(info["version"]) < (3, 11):
         return stage("pending_user", "现有虚拟环境的 Python 低于 3.11；请先确认迁移方式。",
                      reason="old_python", python=info["version"])
@@ -182,8 +182,8 @@ def inspect_runtime(root: Path) -> dict[str, Any]:
         ensure_within(Path(info[key]), expected)
     missing = [name for name, version in pins.items() if info["packages"].get(name) != version]
     source = info.get("source")
-    linked = bool(source and Path(source).resolve() == root / "src/sztu_connect/__init__.py"
-                  and info["packages"].get("sztu-connect"))
+    linked = bool(source and Path(source).resolve() == root / "src/digital_sztu/__init__.py"
+                  and info["packages"].get("digital-sztu"))
     ready = not missing and linked and info["pip"]
     return stage(
         "completed" if ready else "pending_user",
@@ -249,7 +249,7 @@ def example_inputs(root: Path) -> dict[str, bytes]:
                 inputs[f"{destination}/{item.relative_to(directory).as_posix()}"] = item.read_bytes()
     for name in ("connect.config.json", "AGENTS.md", ".codex-plugin/plugin.json"):
         inputs[name] = local_path(root, name).read_bytes()
-    inputs["README.md"] = "# SZTU Connect 示例\n\n仅用于初始化演示，不是真实校园史料。\n".encode()
+    inputs["README.md"] = "# Digital SZTU 示例\n\n仅用于初始化演示，不是真实校园史料。\n".encode()
     if "examples/chat/messages.example.jsonl" not in inputs:
         raise ValueError("Missing synthetic chat example")
     return inputs
@@ -258,7 +258,7 @@ def example_inputs(root: Path) -> dict[str, bytes]:
 def example_revision(root: Path, inputs: dict[str, bytes]) -> str:
     digest = hashlib.sha256()
     files = dict(inputs)
-    for item in sorted((root / "src/sztu_connect").glob("*.py")):
+    for item in sorted((root / "src/digital_sztu").glob("*.py")):
         files[f"implementation/{item.name}"] = local_path(root, item.relative_to(root).as_posix()).read_bytes()
     files["requirements.lock"] = local_path(root, "requirements.lock").read_bytes()
     for name, value in sorted(files.items()):
@@ -272,7 +272,7 @@ def file_hashes(directory: Path) -> dict[str, str]:
 
 
 def run_cli(root: Path, example: Path, arguments: list[str]) -> dict[str, Any]:
-    result = command_json([str(venv_python(root)), "-B", "-m", "sztu_connect",
+    result = command_json([str(venv_python(root)), "-B", "-m", "digital_sztu",
                            "--root", str(example), *arguments, "--json"], root)
     if not result.get("ok"):
         raise RuntimeError(f"Example check failed: {arguments[0]}")
@@ -344,7 +344,7 @@ def prepare_example(root: Path, check: bool, operations: list[dict[str, Any]]) -
         run_cli(root, destination, ["export-knowledge", "--output", ".work/knowledge"])
         run_cli(root, destination, [
             "render-chat", str(destination / "examples/chat/messages.example.jsonl"),
-            "--title", "SZTU Connect 聊天结构示例", "--output", ".work/chat/transcript.html",
+            "--title", "Digital SZTU 聊天结构示例", "--output", ".work/chat/transcript.html",
         ])
         write_json(receipt_path, {"revision": revision, "generated": first,
                                   "transcript": sha256_file(transcript), "export": sha256_file(export)})
@@ -627,10 +627,10 @@ def bootstrap(root: Path, *, check: bool = False, github: bool = False) -> dict[
         if any(parts[index:index + 2] == ("plugins", "cache") for index in range(len(parts) - 1)):
             raise ValueError("Select a user checkout, not an installed plugin cache")
         required = ("README.md", "AGENTS.md", "connect.config.json", "requirements.lock",
-                    "pyproject.toml", "src/sztu_connect/__init__.py", ".codex-plugin/plugin.json")
+                    "pyproject.toml", "src/digital_sztu/__init__.py", ".codex-plugin/plugin.json")
         missing = [name for name in required if not local_path(root, name).is_file()]
-        if missing or load_json(root / "connect.config.json").get("project", {}).get("slug") != "sztu-connect":
-            raise ValueError("Select a complete SZTU Connect user checkout; bootstrap does not clone over a directory")
+        if missing or load_json(root / "connect.config.json").get("project", {}).get("slug") != "digital-sztu":
+            raise ValueError("Select a complete Digital SZTU user checkout; bootstrap does not clone over a directory")
         if system not in ("Darwin", "Windows"):
             stages["workspace"] = stage("not_applicable", "此系统保留手动 CLI 安装；自动初始化仅面向 macOS/Windows。")
             report["status"] = "not_applicable"
@@ -686,7 +686,7 @@ def bootstrap(root: Path, *, check: bool = False, github: bool = False) -> dict[
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Prepare or inspect a local SZTU Connect user checkout.")
+    parser = argparse.ArgumentParser(description="Prepare or inspect a local Digital SZTU user checkout.")
     parser.add_argument("--root", type=Path, default=PROJECT, help="explicit user checkout, never a plugin cache")
     parser.add_argument("--check", action="store_true", help="inspect only; no installs, builds or writes")
     parser.add_argument("--json", action="store_true", dest="as_json")
@@ -697,7 +697,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"contract_version": "0.1.0", "operation": "bootstrap",
                           "ok": report["ok"], "data": report}, ensure_ascii=False, indent=2))
     else:
-        print(f"[{report['status']}] SZTU Connect")
+        print(f"[{report['status']}] Digital SZTU")
         print(f"Repository: {report['repository']}")
         for name, item in report["stages"].items():
             print(f"  {name}: {item['status']} — {item['message']}")

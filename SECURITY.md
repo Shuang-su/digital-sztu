@@ -4,6 +4,6 @@
 
 发现仓库内存在可用于账号或身份接管的信息时，请使用 GitHub 的私密漏洞报告入口：
 
-<https://github.com/Shuang-su/sztu-connect/security/advisories/new>
+<https://github.com/Shuang-su/digital-sztu/security/advisories/new>
 
 普通事实更正可以使用公开 Issue 或提交。安全报告只处理泄露风险，不负责裁决历史争议。

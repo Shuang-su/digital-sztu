@@ -41,7 +41,7 @@ def prose_without_code(markdown: str) -> str:
 
 def identity_example() -> str:
     return "\n\n".join([
-        "# SZTU Connect",
+        "# Digital SZTU",
         "## 🐔🧱构史 · G.O.U.S.H.I.",
         EXPANSION,
         *(f"**{letter} — {term}**" for letter, term in TERMS),
@@ -51,13 +51,13 @@ def identity_example() -> str:
 class ReadmeTests(unittest.TestCase):
     def assert_public_identity(self, markdown: str) -> None:
         # These checks cover public wording, not inline emphasis or section placement.
-        visible = re.sub(r"[*_`]", "", prose_without_code(markdown))
+        visible = re.sub(r"(?m)^> ?", "", re.sub(r"[*_`]", "", prose_without_code(markdown)))
         headings = [
             (len(marks), " ".join(title.split()))
             for marks, title in re.findall(r"(?m)^(#{1,6})[ \t]+([^\n]+)$", visible)
         ]
-        self.assertEqual([title for level, title in headings if level == 1], ["SZTU Connect"])
-        self.assertEqual(headings.count((2, "🐔🧱构史 · G.O.U.S.H.I.")), 1)
+        self.assertEqual([title for level, title in headings if level == 1], ["Digital SZTU"])
+        self.assertEqual(" ".join(visible.split()).count("🐔🧱构史 · G.O.U.S.H.I."), 1)
         self.assertEqual(" ".join(visible.split()).count(EXPANSION), 1)
         self.assertEqual(
             re.findall(r"(?m)^[ \t]*([GOUSHI])[ \t]+—[ \t]+([^\n]+?)[ \t]*$", visible),
@@ -74,7 +74,7 @@ class ReadmeTests(unittest.TestCase):
     def test_identity_allows_layout_and_emphasis_changes(self) -> None:
         original = identity_example()
         formatted = original.replace(
-            "# SZTU Connect\n\n", "# **SZTU Connect**\n\n<br>\n\n项目介绍。\n\n"
+            "# Digital SZTU\n\n", "# **Digital SZTU**\n\n<br>\n\n项目介绍。\n\n"
         ).replace("## 🐔🧱构史 · G.O.U.S.H.I.", "## **🐔🧱构史** ·  G.O.U.S.H.I.")
         for letter, term in TERMS:
             formatted = formatted.replace(f"**{letter} — {term}**", f"**{letter}** — *{term}*")
@@ -85,7 +85,7 @@ class ReadmeTests(unittest.TestCase):
     def test_identity_rejects_name_and_expansion_regressions(self) -> None:
         original = identity_example()
         invalid_examples = {
-            "standard name": original.replace("# SZTU Connect", "# Another Project"),
+            "standard name": original.replace("# Digital SZTU", "# Another Project"),
             "extra primary heading": original + "\n\n# Another Heading",
             "old five-letter name": original.replace("G.O.U.S.H.I.", "G.U.S.H.I."),
             "duplicate expansion": original + "\n\n" + EXPANSION,

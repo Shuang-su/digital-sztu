@@ -1,6 +1,6 @@
 # 聊天导出与来源引用
 
-SZTU Connect 复用第三方已经做好的导出工具，维护其固定版本、来源链、许可与下载入口；不开发微信数据库解析、解密、密钥提取或自动 normalizer。当前内置能力仍是平台无关的 JSONL Schema、校验和通用 HTML renderer。
+Digital SZTU 复用第三方已经做好的导出工具，维护其固定版本、来源链、许可与下载入口；不开发微信数据库解析、解密、密钥提取或自动 normalizer。当前内置能力仍是平台无关的 JSONL Schema、校验和通用 HTML renderer。
 
 工具选择、安装包链接及源码存档统一见 [工具目录](../importers/README.md)，精确提交、大小与哈希见 [工具登记表](../importers/registry.json)。支持版本的证据与替代方案见 [研究报告](research/2026-09-03-chat-export-tools.md)。这些是软件存档，不是校园事实的 `Source` 记录。
 
@@ -30,7 +30,7 @@ SZTU Connect 复用第三方已经做好的导出工具，维护其固定版本�
 需要保存私有文件清单，且允许在 `.work/` 写入时，只对用户选定的导出路径运行：
 
 ```bash
-sztu-connect ingest <path> --dry-run --json
+digital-sztu ingest <path> --dry-run --json
 ```
 
 这个命令清点文件与哈希，不解析微信数据库，也不自动创建正式 Source/Event。**`--dry-run` 不等于零写入**：它仍会生成 `.work/intake/submission-…/manifest.json`；`--output` 也只允许指向 `.work/` 内。若请求严格只读，或输出范围不包含 `.work/`，不调用此命令，改用当前环境的只读文件检查与 SHA-256 命令（例如 macOS 的 `shasum -a 256`、Windows 的 `Get-FileHash`）。
@@ -61,8 +61,8 @@ Claim 的 Citation 指向这个聊天 Source，并给出可复核的消息位置
 以下使用仓库的虚构结构示例，不读取真实聊天：
 
 ```bash
-sztu-connect validate-chat examples/chat/messages.example.jsonl --json
-sztu-connect render-chat examples/chat/messages.example.jsonl \
+digital-sztu validate-chat examples/chat/messages.example.jsonl --json
+digital-sztu render-chat examples/chat/messages.example.jsonl \
   --title "结构示例" \
   --output .work/chat/example.html \
   --json

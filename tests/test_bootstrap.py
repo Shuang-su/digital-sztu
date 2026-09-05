@@ -72,10 +72,10 @@ class BootstrapTests(unittest.TestCase):
     def runtime_info(self, **changes: object) -> dict[str, object]:
         info = {
             "version": [3, 13, 0], "prefix": str(self.root / ".venv"),
-            "source": str(self.root / "src/sztu_connect/__init__.py"),
+            "source": str(self.root / "src/digital_sztu/__init__.py"),
             "purelib": str(self.root / ".venv/lib/site-packages"),
             "platlib": str(self.root / ".venv/lib/site-packages"), "pip": True,
-            "packages": {**bootstrap.locked_packages(self.root), "sztu-connect": "0.1.0"},
+            "packages": {**bootstrap.locked_packages(self.root), "digital-sztu": "0.1.0"},
         }
         return {**info, **changes}
 

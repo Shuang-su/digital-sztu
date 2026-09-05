@@ -53,7 +53,7 @@ class OnboardingDocumentTests(unittest.TestCase):
 
     def test_public_prompt_maps_to_the_shared_local_guide(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        url = re.search(r"https://raw\.githubusercontent\.com/Shuang-su/sztu-connect/main/(\S+\.md)", readme)
+        url = re.search(r"https://raw\.githubusercontent\.com/Shuang-su/digital-sztu/main/(\S+\.md)", readme)
         self.assertIsNotNone(url)
         self.assertEqual(url[1], "docs/GETTING_STARTED.md")
         self.assertTrue((ROOT / url[1]).is_file())
@@ -62,19 +62,19 @@ class OnboardingDocumentTests(unittest.TestCase):
     def test_native_routes_point_to_one_skill_and_existing_rules(self) -> None:
         manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
         skill_root = (ROOT / manifest["skills"]).resolve()
-        self.assertTrue((skill_root / "setup-sztu-connect/SKILL.md").is_file())
+        self.assertTrue((skill_root / "setup-digital-sztu/SKILL.md").is_file())
         prompts = manifest["interface"]["defaultPrompt"]
         self.assertLessEqual(len(prompts), 3)
         self.assertTrue(all(len(item) <= 128 for item in prompts))
-        self.assertTrue(any("setup-sztu-connect" in item for item in prompts))
+        self.assertTrue(any("setup-digital-sztu" in item for item in prompts))
         imports = re.findall(r"(?m)^@(\S+)$", (ROOT / "CLAUDE.md").read_text(encoding="utf-8"))
         self.assertEqual(imports, ["AGENTS.md"])
         self.assertTrue((ROOT / imports[0]).is_file())
-        self.assertFalse((ROOT / ".agents/skills/setup-sztu-connect").exists())
+        self.assertFalse((ROOT / ".agents/skills/setup-digital-sztu").exists())
 
     def test_starter_metadata_does_not_register_native_capabilities_as_services(self) -> None:
         manifest = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["name"], "sztu-connect")
+        self.assertEqual(manifest["name"], "digital-sztu")
         for field in ("mcpServers", "apps", "hooks"):
             self.assertNotIn(field, manifest)
         self.assertFalse((ROOT / ".mcp.json").exists())
@@ -84,7 +84,7 @@ class OnboardingDocumentTests(unittest.TestCase):
         self.assertIn("Computer Use", starter)
         self.assertIn("Computer History", starter)
         self.assertIn("我授权", starter)
-        self.assertIn("setup-sztu-connect", starter)
+        self.assertIn("setup-digital-sztu", starter)
 
 
 if __name__ == "__main__":

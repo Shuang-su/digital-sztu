@@ -1,3 +1,3 @@
-# SZTU Connect
+# Digital SZTU
 
 @AGENTS.md
