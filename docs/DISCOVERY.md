@@ -23,6 +23,8 @@ digital-sztu discover init --legacy-state /path/to/old/state.json --json
 
 `--limit` 是单次操作数量，不是调查完成条件。REST 分页按最多五页的公平执行片段提交，GraphQL 列表按逐页批次提交，未读页保持在队列中。每页新增实体、关系与下一页游标在 SQLite 同一事务中提交；未提交页中断后重新读取。profile 查询按最多 50 个账号合并为一次只读 GraphQL 请求，逐项核对数字 ID；改名或旧登录名被复用时回到数字 ID 查询。仓库、星标和关注列表也支持自适应批量查询；出现资源限制时缩小同类批次。已开始的 REST 列表继续原分页，不切换到 GraphQL 游标。只有与查询范围一致的确切零计数可以完成尚未开始的空列表任务；拥有仓库数为零不能代表全部公开参与仓库为空，已有分页断点不以计数替代。REST 与 GraphQL 各自保留额度，服务级退避对两者同时生效。所有限流与错误保留状态，不通过换账号或继续限流请求推进。
 
+对经公开证据复核的工具／自动署名账号，可在 `discover review` 条目中设置 `expansion_exclusion: "tool-attribution-account"`；只对账号生效，必须附原因和来源定位。它停止该账号尚未完成的 following/followers 扩展，记录原状态与停止原因，保留原游标、已读页、贡献边以及所有已发现的下游候选和队列。已经完成的列表不改写；再次遇到账号或改名不解除排除。不能仅凭用户名、GitHub User 类型或贡献者映射判定校园真人身份。
+
 账号和仓库使用 GitHub 数字 ID，名字改变不会创建另一对象。账号列表前刷新数字身份，避免把旧登录名的新持有人当作原账号。
 
 README 的批量读取先检查数字身份与公开状态，再从固定默认分支提交选择文件，最后核对完整 UTF-8 字节数和 Git blob 哈希。按 [GitHub 的 README 规则](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-readmes)中 `.github`、根目录、`docs` 的优先顺序处理无歧义的常见文本文件；多版本、特殊格式或不能完整验证的正文转回 REST，仍须人工判定校园关联。数字 ID 形式的旧 REST 分页链接也要与任务实体一致，才可保留原页码恢复。

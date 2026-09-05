@@ -134,7 +134,7 @@ class GraphQLReads:
                 self.save()
                 continue
             if kind in ('followers', 'following') and (rec.get('expansion_exclusion') or rec.get('best_unknown_distance', 99) > 1):
-                op.update(status='stopped-policy', reason='bridge-boundary-or-explicit-exclusion')
+                self.stop_social_operation(op, 'explicit-exclusion:' + rec['expansion_exclusion'] if rec.get('expansion_exclusion') else 'bridge-boundary')
                 self.save()
                 continue
             connection = {'repos': 'repositories', 'stars': 'starredRepositories'}.get(kind, kind)

@@ -343,6 +343,13 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
                 raise ValueError('Review requires an explicit scope/evidence reason')
             if item['verification_status'] == 'confirmed' and not item.get('evidence'):
                 raise ValueError('Confirmed review requires source evidence')
+            if 'expansion_exclusion' in item:
+                if self.state['records'][item['id']]['record_type'] != 'account':
+                    raise ValueError('Social expansion exclusion requires an account record')
+                if item['expansion_exclusion'] not in ('tool-attribution-account', 'bot-not-a-person'):
+                    raise ValueError('Unsupported social expansion exclusion')
+                if not item.get('evidence'):
+                    raise ValueError('Social expansion exclusion requires source evidence')
             for proof in item.get('evidence', []):
                 if not proof.get('url') or not url(proof['url']) or not proof.get('locator') or not proof.get('accessed_at'):
                     raise ValueError('Evidence needs a safe public URL, locator and access time')
@@ -357,12 +364,14 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
         for item in items:
             rec = self.state['records'][item['id']]
             before = rec['verification_status']
-            for key in ('verification_status', 'category', 'relevance_reason', 'gaps', 'derivation_kind', 'count_as_independent_project', 'contributor_scope', 'contributor_scope_reason', 'reviewed_reference_urls'):
+            for key in ('verification_status', 'category', 'relevance_reason', 'gaps', 'derivation_kind', 'count_as_independent_project', 'contributor_scope', 'contributor_scope_reason', 'reviewed_reference_urls', 'expansion_exclusion'):
                 if key in item:
                     rec[key] = item[key]
             for proof in item.get('evidence', []):
                 if proof not in rec.setdefault('evidence', []):
                     rec['evidence'].append(proof)
+            if item.get('expansion_exclusion'):
+                self.stop_account_social_expansion(rec)
             rec['manual_reviewed_at'] = now()
             for kind in ('relevance-review', 'external-review'):
                 op = self.state['ops'].get(rec['id'] + '|' + kind)

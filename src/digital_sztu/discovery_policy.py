@@ -63,11 +63,31 @@ class DiscoveryPolicy:
         q = self.state['ops'].get(key)
         if q:
             q['priority'] = min(q['priority'], priority)
-            if kwargs.get('reopen') and q['status'] == 'stopped-policy':
+            if kwargs.get('reopen') and q['status'] == 'stopped-policy' and not (
+                op in ('followers', 'following') and self.state['records'][sid].get('expansion_exclusion')
+            ):
                 q['status'] = 'pending'
             return key
         self.state['ops'][key] = {'id': key, 'entity_id': sid, 'operation': op, 'priority': priority, 'status': 'pending', 'queued_at': now(), **kwargs}
         return key
+
+    def stop_social_operation(self, op, reason):
+        # Keep the original page/cursor counters and completed observations intact.
+        if op['status'] in ('complete', 'not-applicable'):
+            return
+        if op.get('policy_stop', {}).get('reason') != reason:
+            op.setdefault('policy_stop_history', []).append({
+                'previous_status': op['status'], 'previous_reason': op.get('reason'),
+                'reason': reason, 'stopped_at': now(),
+            })
+            op['policy_stop'] = op['policy_stop_history'][-1]
+        op.update(status='stopped-policy', reason=reason)
+
+    def stop_account_social_expansion(self, rec):
+        for kind in ('followers', 'following'):
+            op = self.state['ops'].get(rec['id'] + '|' + kind)
+            if op:
+                self.stop_social_operation(op, 'explicit-exclusion:' + rec['expansion_exclusion'])
 
     def edge(self, a, rel, b, evidence, context=None):
         assert a in self.state['records'] and b in self.state['records']
@@ -100,7 +120,8 @@ class DiscoveryPolicy:
         elif distance is not None:
             rec['best_unknown_distance'] = min(rec.get('best_unknown_distance', 99), distance)
         if row.get('type') == 'Bot':
-            rec['expansion_exclusion'] = 'bot-not-a-person'
+            rec.setdefault('expansion_exclusion', 'bot-not-a-person')
+            self.stop_account_social_expansion(rec)
             return sid
         if anchor or distance is not None:
             self.enqueue(sid, 'profile', priority)
@@ -108,7 +129,7 @@ class DiscoveryPolicy:
             if row.get('type') != 'Organization':
                 self.enqueue(sid, 'stars', priority + 4)
                 d = rec.get('best_unknown_distance', 99)
-                if d <= 1:
+                if d <= 1 and not rec.get('expansion_exclusion'):
                     self.enqueue(sid, 'following', priority + 6, reopen=True)
                     self.enqueue(sid, 'followers', priority + 6, reopen=True)
         return sid
@@ -413,6 +434,9 @@ class DiscoveryPolicy:
             self.rebase_cursor(op, endpoint)
             self.pages(op, endpoint, receive)
             return
+        if kind in ('following', 'followers') and rec.get('expansion_exclusion'):
+            self.stop_social_operation(op, 'explicit-exclusion:' + rec['expansion_exclusion'])
+            return
         identity = {'id': op['id'], 'operation': 'identity-refresh'}
         self.profile(identity, rec)
         if identity.get('status') != 'complete':
@@ -425,7 +449,7 @@ class DiscoveryPolicy:
                 op.update(status='not-applicable', reason='organization has no user social lists')
                 return
             if rec.get('expansion_exclusion') or distance > 1:
-                op.update(status='stopped-policy', reason='bridge-boundary-or-explicit-exclusion')
+                self.stop_social_operation(op, 'bridge-boundary-or-explicit-exclusion')
                 return
 
             def receive(row, endpoint):
