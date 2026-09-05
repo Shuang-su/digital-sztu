@@ -757,7 +757,7 @@ class RepositoryTests(unittest.TestCase):
         output = render_chat(messages, "Example")
         self.assertNotIn("<script>alert(1)</script>", output)
         self.assertIn("&lt;script&gt;", output)
-        self.assertIn("Digital SZTU／技大时空", output)
+        self.assertIn("Digital SZTU", output)
         self.assertNotIn("🐔🧱时空", output)
 
     def test_name_contract(self) -> None:

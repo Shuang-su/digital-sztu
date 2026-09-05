@@ -5,10 +5,10 @@ install:
 	python -m pip install --no-deps -e .
 
 check:
-	sztu-connect check --json
+	digital-sztu check --json
 
 build:
-	sztu-connect build --json
+	digital-sztu build --json
 
 test:
 	python -m unittest discover -s tests

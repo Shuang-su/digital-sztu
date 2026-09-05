@@ -23,6 +23,6 @@
 
 ## 校验
 
-- [ ] `sztu-connect check --json`
+- [ ] `digital-sztu check --json`
 - [ ] `python -m unittest discover -s tests`
 - [ ] 连续构建未产生额外 diff

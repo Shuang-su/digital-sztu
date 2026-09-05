@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:sztu-connect:schema:submission:0.1.0",
-  "title": "SZTU Connect local intake manifest",
+  "title": "Digital SZTU local intake manifest",
   "type": "object",
   "additionalProperties": false,
   "required": [

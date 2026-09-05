@@ -78,7 +78,7 @@ header p {{ margin: 6px 0 0; font-size: 12px; color: #667085; }}
 </head>
 <body>
 <main>
-<header><h1>{safe_title}</h1><p>Digital SZTU／技大时空：通用聊天记录重建；不代表微信官方界面或认证。</p></header>
+<header><h1>{safe_title}</h1><p>Digital SZTU：通用聊天记录重建；不代表微信官方界面或认证。</p></header>
 <section class="transcript">{''.join(items)}</section>
 </main>
 </body>

@@ -2,8 +2,8 @@
 
 ## 公开标识
 
-- 标准名称、公开名称、插件名称、包名、命令行和协议字段统一使用 `Digital SZTU`。
-- 标准包、插件与命令为 `digital-sztu`，Python 主模块为 `digital_sztu`。旧入口作为兼容别名保留，不改写历史 ID。
+- 公开名称使用 `Digital SZTU`。仓库、安装包、插件和主命令统一为 `digital-sztu`，Python 主模块为 `digital_sztu`。
+- 旧命令、旧模块与旧初始化 Skill 作为兼容入口保留；不因更名改写稳定 ID、历史记录或 v0.1 协议标识。
 - README 首页可以展示已经批准的附属标题；
 
 除 README 首页已经批准的文案外，不在其他项目文档扩散附属标题或口号。

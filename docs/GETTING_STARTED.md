@@ -229,6 +229,6 @@ print(report)
 
 ## v0.2 兼容与档案阅读
 
-新安装使用 `digital-sztu` 包、`digital_sztu` 模块与 `setup-digital-sztu` Skill。旧的 `sztu-connect` 命令、`python -m sztu_connect` 和 `setup-sztu-connect` Skill 均转到同一实现；升级不会改写已有记录 ID。保留原工作副本的内容，在自己的环境中重新安装当前包即可。
+新安装使用 `digital-sztu` 包、`digital_sztu` 模块与 `setup-digital-sztu` Skill。旧的 `sztu-connect` 命令、`python -m sztu_connect` 和 `setup-sztu-connect` Skill 均转到同一实现。保留原工作副本和虚拟环境，在当前源码根目录运行该环境的 `python -m pip install -e .`，即可安装新版入口；不需要重命名已有文件夹。已有记录 ID、Schema URN 与 v0.1 知识导出格式保持兼容。
 
 运行 `digital-sztu graph --open` 可浏览本地交互档案；`data/generated/catalog/README.md` 可直接通过 GitHub、编辑器或 Obsidian 阅读。普通浏览不依赖 Node.js。链式来源研究另见 [来源普查](DISCOVERY.md)，研究候选不自动进入正式图谱。

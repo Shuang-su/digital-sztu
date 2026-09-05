@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:sztu-connect:schema:chat-message:0.1.0",
-  "title": "SZTU Connect normalized chat message",
+  "title": "Digital SZTU normalized chat message",
   "type": "object",
   "additionalProperties": false,
   "required": [

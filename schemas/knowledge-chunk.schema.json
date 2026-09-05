@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:sztu-connect:schema:knowledge-chunk:0.1.0",
-  "title": "SZTU Connect provider-neutral knowledge chunk",
+  "title": "Digital SZTU provider-neutral knowledge chunk",
   "type": "object",
   "additionalProperties": false,
   "required": [
