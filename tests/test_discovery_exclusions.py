@@ -86,3 +86,16 @@ class SocialExpansionExclusionTests(unittest.TestCase):
             self.run.review([{**self.review, 'expansion_exclusion': 'name-looks-like-tool'}])
         self.run.state['records'][self.sid]['record_type'] = 'repository'
         with self.assertRaises(ValueError): self.run.review([self.review])
+
+    def test_confirmation_refreshes_completed_candidate_metadata_once(self):
+        rec = self.run.state['records'][self.sid]
+        rec.update(record_type='repository', category='unknown')
+        key = self.run.enqueue(self.sid, 'metadata')
+        self.run.state['ops'][key]['status'] = 'complete'
+        review = {k: v for k, v in self.review.items() if k != 'expansion_exclusion'}
+        review.update(verification_status='confirmed', category='course-homework')
+        self.run.review([review])
+        self.assertEqual(self.run.state['ops'][key]['status'], 'pending')
+        self.run.state['ops'][key]['status'] = 'complete'
+        self.run.review([review])
+        self.assertEqual(self.run.state['ops'][key]['status'], 'complete')

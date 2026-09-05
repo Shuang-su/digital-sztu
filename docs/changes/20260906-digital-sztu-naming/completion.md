@@ -30,3 +30,4 @@
 - 已检查本机 Codex 插件清单，未发现安装的旧 SZTU 插件，因此没有修改插件缓存或额外创建个人 marketplace。仓库插件标识与版本已经服务端发布。
 - 当前未发布 PyPI 包或 GitHub Release；本项目继续按仓库源码安装，wheel 作为实际安装验证产物。
 
+- 已向 [长期路线 Issue #1](https://github.com/Shuang-su/digital-sztu/issues/1#issuecomment-5553581487) 回写命名交付结果，并读回正文验证；Issue 保持开放。

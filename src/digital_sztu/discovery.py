@@ -364,6 +364,8 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
         for item in items:
             rec = self.state['records'][item['id']]
             before = rec['verification_status']
+            scope_fields = ('verification_status', 'category', 'contributor_scope')
+            previous_scope = tuple(rec.get(key) for key in scope_fields)
             for key in ('verification_status', 'category', 'relevance_reason', 'gaps', 'derivation_kind', 'count_as_independent_project', 'contributor_scope', 'contributor_scope_reason', 'reviewed_reference_urls', 'expansion_exclusion'):
                 if key in item:
                     rec[key] = item[key]
@@ -379,7 +381,10 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
                     op.update(status='complete', completed_at=now())
             if rec['record_type'] == 'repository' and rec['verification_status'] == 'confirmed':
                 # Metadata refresh applies fork and campus-delta contributor policy.
-                self.enqueue(rec['id'], 'metadata', 8)
+                key = self.enqueue(rec['id'], 'metadata', 8)
+                metadata = self.state['ops'][key]
+                if previous_scope != tuple(rec.get(field) for field in scope_fields) and metadata['status'] in ('complete', 'not-applicable', 'stopped-policy'):
+                    metadata.update(status='pending', reason='apply newly reviewed repository scope')
                 self.references(rec)
                 if before != 'confirmed':
                     self.state['no_new_convergence_rounds'] = 0

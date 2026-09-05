@@ -237,7 +237,7 @@ examples/minimal/    不进入正式索引的结构示例
 
 长期目标是在不改变 Event 历史语义的前提下，逐步建设社区可治理、Agent 可协作、证据优先、时间感知、本地可重建的校园知识基础设施。系统应保留来源、版本、矛盾与不确定性，并在证据不足、信息过期或问题前提错误时拒绝给出虚假的确定答案。
 
-这是一项长期路线，不代表 Knowledge Record、全文检索、混合检索、RAG、网站或持续监测已经实现。路线拆分与完成条件见 [长期路线 Issue #1](https://github.com/Shuang-su/digital-sztu/issues/1) 和 [项目路线](docs/ROADMAP.md)。
+Knowledge Record 与档案阅读视图已具备本地实现；全文检索、混合检索、RAG 与持续监测仍属于长期路线。路线拆分与完成条件见 [长期路线 Issue #1](https://github.com/Shuang-su/digital-sztu/issues/1) 和 [项目路线](docs/ROADMAP.md)。
 
 ## 参与项目与获取帮助
 
