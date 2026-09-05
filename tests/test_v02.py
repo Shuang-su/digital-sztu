@@ -313,3 +313,240 @@ class PromotionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'changed'):
             recover_promotion(self.root)
         self.assertEqual(self.target.read_text(), 'user correction')
+
+
+class ProfileBatchTests(unittest.TestCase):
+    setUp = ResearchTests.setUp
+    tearDown = ResearchTests.tearDown
+    account = ResearchTests.account
+
+    def test_graphql_batch_applies_stable_ids_and_zero_lists(self):
+        from types import SimpleNamespace
+        sid = self.account(anchor=True)
+        self.run.save()
+        response = {'data': {'a0': {'databaseId': 7, 'login':'user7','url':'https://github.com/user7','websiteUrl':None,
+                    'repositories':{'totalCount':0},'followers':{'totalCount':0},'following':{'totalCount':0},'starredRepositories':{'totalCount':0}},
+                    'rateLimit':{'remaining':4999,'resetAt':'2026-09-05T23:00:00Z','cost':1}}}
+        with patch('digital_sztu.discovery.subprocess.run', return_value=SimpleNamespace(stdout=json.dumps(response),returncode=0)) as request:
+            count, error = self.run.profile_batch()
+        self.assertEqual((count,error), (1,None))
+        self.assertIn('query {', json.loads(request.call_args.kwargs['input'])['query'])
+        for op in ('profile','repos','stars','followers','following'):
+            self.assertEqual(self.run.state['ops'][sid+'|'+op]['status'], 'complete')
+
+    def test_reused_login_falls_back_to_numeric_identity(self):
+        from types import SimpleNamespace
+        sid = self.account(anchor=True)
+        self.run.save()
+        response = {'data': {'a0':{'databaseId':8}}}
+        with patch('digital_sztu.discovery.subprocess.run', return_value=SimpleNamespace(stdout=json.dumps(response),returncode=0)):
+            with patch.object(self.run,'api',return_value=({'id':7,'login':'renamed','html_url':'https://github.com/renamed','type':'User'}, {}, None)) as api:
+                count,error = self.run.profile_batch()
+        self.assertEqual((count,error), (1,None))
+        self.assertEqual(api.call_args.args[0], 'user/7')
+        self.assertEqual(self.run.state['records'][sid]['title'],'renamed')
+
+    def test_rate_error_never_marks_batch_complete(self):
+        from types import SimpleNamespace
+        sid = self.account(anchor=True)
+        self.run.save()
+        response = {'errors':[{'type':'RATE_LIMITED'}]}
+        with patch('digital_sztu.discovery.subprocess.run',return_value=SimpleNamespace(stdout=json.dumps(response),returncode=1)):
+            count,error = self.run.profile_batch()
+        self.assertEqual(count, 0)
+        self.assertEqual(error, 'graphql-error')
+        self.assertEqual(self.run.state['ops'][sid+'|profile']['status'], 'pending')
+
+
+class ReleaseTests(unittest.TestCase):
+    def test_public_git_check_blocks_secret_without_echoing_value(self):
+        from digital_sztu.public import check_public_records
+        repo = ExampleRepository()
+        try:
+            source = repo.root / 'sources/records/source-example-documentation.json'
+            value = load_json(source)
+            secret = 'ghp_' + 'X' * 36
+            value['notes'] = secret
+            write_json(source, value)
+            result = check_public_records(repo.root)
+            self.assertFalse(result['ok'])
+            self.assertNotIn(secret, json.dumps(result))
+            self.assertTrue(build_indexes(repo.root)['ok'])
+        finally:
+            repo.close()
+
+    def test_validity_precision_overlap_does_not_invent_months(self):
+        repo = ExampleRepository()
+        try:
+            record = knowledge(repo)
+            record['validity'].update(start='2026-12', end='2026')
+            write_json(repo.root/'content/knowledge/knowledge-example/record.json',record)
+            self.assertTrue(validate_repository(repo.root)['ok'])
+        finally:
+            repo.close()
+
+
+class AdditionalResearchGuards(unittest.TestCase):
+    setUp = ResearchTests.setUp
+    tearDown = ResearchTests.tearDown
+    account = ResearchTests.account
+
+    def test_resume_respects_persisted_rate_reset(self):
+        import time
+        self.account(anchor=True)
+        self.run.state['blocked_until'] = {'all': time.time()+300}
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run') as request:
+            result = self.run.resume(1)
+        request.assert_not_called()
+        self.assertEqual(result['blocked'], 'rate-deferred')
+        self.assertGreater(result['operations']['pending'], 0)
+
+    def test_no_new_round_compares_identities_not_net_count(self):
+        self.run.state['records']['github-repo:1'] = {'id':'github-repo:1','record_type':'repository','verification_status':'confirmed'}
+        self.run.save()
+        self.run.sweep(['SZTU'])
+        for op in self.run.state['ops'].values():
+            op['status'] = 'complete'
+        self.run.state['records']['github-repo:1']['verification_status'] = 'excluded'
+        self.run.state['records']['github-repo:2'] = {'id':'github-repo:2','record_type':'repository','verification_status':'confirmed'}
+        self.run.save()
+        result = self.run.sweep(complete=True)
+        self.assertEqual(result['no_new_convergence_rounds'], 0)
+        self.assertEqual(self.run.state['sweeps'][-1]['new_confirmed'], 1)
+
+    def test_transient_page_error_keeps_cursor_executable(self):
+        sid = self.account()
+        op = self.run.state['ops'][self.run.enqueue(sid,'followers')]
+        with patch.object(self.run,'api',return_value=(None,{},'http-503')):
+            self.run.pages(op,'users/user7/followers',lambda *_:None)
+        self.assertEqual(op['status'],'deferred')
+        self.assertEqual(op['next_endpoint'],'users/user7/followers')
+
+
+class ListBatchTests(unittest.TestCase):
+    setUp = ResearchTests.setUp
+    tearDown = ResearchTests.tearDown
+    account = ResearchTests.account
+
+    def response(self, rows, more=False, cursor=None, identifier=7):
+        from types import SimpleNamespace
+        return SimpleNamespace(returncode=0, stdout=json.dumps({'data': {'a0': {
+            'databaseId': identifier, 'login': 'user7', 'url': 'https://github.com/user7',
+            'results': {'nodes': rows, 'totalCount': len(rows) + int(more),
+                        'pageInfo': {'hasNextPage': more, 'endCursor': cursor}}}}}))
+
+    def row(self, identifier=8):
+        return {'__typename':'User', 'databaseId':identifier, 'login':f'user{identifier}', 'url':f'https://github.com/user{identifier}'}
+
+    def test_page_cursor_and_observations_commit_together_and_resume(self):
+        sid = self.account(distance=1)
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run', return_value=self.response([self.row()], True, 'next-page')):
+            self.assertEqual(self.run.list_batch('following'), (1, None))
+        self.run.close()
+        self.run = Research(self.db)
+        self.assertEqual(self.run.state['ops'][sid+'|following']['graphql_cursor'], 'next-page')
+        self.assertIn('github-account:8', self.run.state['records'])
+        with patch('digital_sztu.discovery.subprocess.run', return_value=self.response([self.row(9)])) as request:
+            self.run.list_batch('following')
+        self.assertIn('after:"next-page"', json.loads(request.call_args.kwargs['input'])['query'])
+        self.assertEqual(self.run.state['ops'][sid+'|following']['returned'], 2)
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'], 'complete')
+        self.assertEqual(self.run.status()['unfinished_pagination'], 0)
+
+    def test_old_rest_cursor_is_never_restarted_as_graphql(self):
+        sid = self.account(anchor=True)
+        op = self.run.state['ops'][sid+'|following']
+        op.update(pages=1,next_endpoint='https://api.github.com/users/user7/following?page=2')
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run') as request:
+            self.assertEqual(self.run.list_batch('following'), (0,None))
+        request.assert_not_called()
+        self.assertEqual(op['pages'], 1)
+
+    def test_repeated_cursor_does_not_commit_or_drop_page(self):
+        sid = self.account(anchor=True)
+        self.run.state['ops'][sid+'|following'].update(pagination_api='graphql',pages=1,returned=100,graphql_cursor='same')
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run', return_value=self.response([self.row()],True,'same')):
+            self.run.list_batch('following')
+        op = self.run.state['ops'][sid+'|following']
+        self.assertEqual((op['status'],op['returned'],op['graphql_cursor']),('deferred',100,'same'))
+        self.assertNotIn('github-account:8', self.run.state['records'])
+
+    def test_social_boundary_is_enforced_before_query(self):
+        sid = self.account(distance=2)
+        self.run.enqueue(sid,'following')
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run') as request:
+            self.run.list_batch('following')
+        request.assert_not_called()
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'],'stopped-policy')
+
+    def test_stale_login_list_is_not_consumed(self):
+        sid = self.account(anchor=True)
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run',return_value=self.response([self.row(88)],identifier=999)):
+            with patch.object(self.run,'api',return_value=({'id':7,'login':'renamed','html_url':'https://github.com/renamed','type':'User'}, {}, None)):
+                self.run.list_batch('following')
+        self.assertEqual(self.run.state['records'][sid]['title'],'renamed')
+        self.assertNotIn('github-account:88',self.run.state['records'])
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'],'pending')
+
+    def test_owned_zero_does_not_finish_all_affiliations_list(self):
+        sid = self.account(anchor=True)
+        self.run.profile_data(self.run.state['ops'][sid+'|profile'],self.run.state['records'][sid],
+                              {'id':7,'login':'user7','html_url':'https://github.com/user7','type':'User','public_repos':0})
+        self.assertEqual(self.run.state['ops'][sid+'|repos']['status'],'pending')
+
+    def test_missing_node_does_not_commit_partial_list(self):
+        sid = self.account(anchor=True)
+        self.run.save()
+        with patch('digital_sztu.discovery.subprocess.run',return_value=self.response([self.row(),None])):
+            self.run.list_batch('following')
+        self.assertNotIn('github-account:8',self.run.state['records'])
+        self.assertEqual(self.run.state['ops'][sid+'|following']['status'],'deferred')
+
+
+class PublicBoundaryTests(unittest.TestCase):
+    def test_narrative_symlink_is_excluded_from_all_public_formats(self):
+        repo = ExampleRepository()
+        try:
+            value = knowledge(repo)
+            value['narrative'] = 'index.md'
+            path = repo.root / 'content/knowledge/knowledge-example/record.json'
+            write_json(path, value)
+            target = path.with_name('private.md')
+            target.write_text('private-body-marker',encoding='utf-8')
+            try:
+                path.with_name('index.md').symlink_to(target.name)
+            except OSError:
+                self.skipTest('Symlinks unavailable on this host')
+            self.assertTrue(build_indexes(repo.root)['ok'])
+            payload=load_json(repo.root/'data/generated/archive.json')
+            self.assertNotIn(value['id'],payload['details'])
+            self.assertNotIn('private-body-marker',json.dumps(payload))
+        finally:
+            repo.close()
+
+    def test_research_cleaner_retains_names_and_omits_credential_patterns(self):
+        from digital_sztu.discovery_policy import clean,url
+        original='公开作者 张三 / Manyou Ma '+ 'AKIA' + 'X'*16
+        self.assertIn('张三 / Manyou Ma',clean(original))
+        self.assertNotIn('AKIA',clean(original))
+        self.assertIsNone(url('http://[::1]/private'))
+        self.assertIsNone(url(None))
+
+    def test_large_text_is_scanned_beyond_previous_size_limit(self):
+        from digital_sztu.privacy import scan_privacy
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            secret='ghp_'+'X'*36
+            with (root/'large.jsonl').open('w') as stream:
+                for _ in range(9000):stream.write('x'*1024+'\n')
+                stream.write(secret+'\n')
+            result=scan_privacy(root)
+            self.assertEqual(result['scanned_files'],1)
+            self.assertTrue(any(f['kind']=='github-token' and f['line']==9001 for f in result['findings']))
+            self.assertNotIn(secret,json.dumps(result))

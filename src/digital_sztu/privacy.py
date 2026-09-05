@@ -31,10 +31,12 @@ TEXT_EXTENSIONS = {
     ".yaml",
     ".yml",
     ".cff",
+    ".svg",
+    ".css",
+    ".js",
 }
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
-MAX_TEXT_BYTES = 8 * 1024 * 1024
 
 # Detected for review tips only; never escalate to block.
 CREDENTIAL_PATTERNS = {
@@ -149,16 +151,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
             size = path.stat().st_size
         except OSError:
             continue
-        if size > MAX_TEXT_BYTES:
-            findings.append(
-                _finding(
-                    "review",
-                    "large-text-not-scanned",
-                    rel,
-                    message="文本超过扫描上限；需要单独检查。",
-                )
-            )
-            continue
+        # Iterate lines even for large exports; file size must not hide a tail secret.
         scanned += 1
         try:
             with path.open("r", encoding="utf-8") as handle:
@@ -171,7 +164,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
                                     kind,
                                     rel,
                                     line=number,
-                                    message="检测到凭据或高风险直接标识；按规则可原样保留并记录。",
+                                    message="检测到凭据或高风险直接标识；需要核查并移除真实秘密，不能随公开交付发布。",
                                 )
                             )
                     for kind, pattern in REVIEW_PATTERNS.items():

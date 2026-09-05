@@ -27,13 +27,25 @@ def record_path(record):
     raise ValueError('Unknown canonical record type')
 
 
-def recover_promotion(root):
+def recover_promotion(root, *, already_locked=False):
+    if (root / '.work').is_symlink():
+        raise ValueError('Promotion work directory must not be a symbolic link')
     journal = root / '.work/promotion-journal.json'
     if not journal.exists():
         return
     if journal.is_symlink():
         raise ValueError('Promotion journal must not be a symbolic link')
     value = load_json(journal)
+    if value.get('database') and not already_locked:
+        database = root / value['database']
+        if database.is_symlink() or not database.resolve().is_relative_to((root / '.work').resolve()):
+            raise ValueError('Unsafe research database recovery path')
+        from .discovery import research_lock
+        try:
+            with research_lock(database):
+                return recover_promotion(root, already_locked=True)
+        except (BlockingIOError, PermissionError) as exc:
+            raise ValueError('Canonical promotion is active; retry after the writer finishes') from exc
     if value['state'] == 'committed':
         journal.unlink()
         return
@@ -59,7 +71,7 @@ def recover_promotion(root):
 
 
 def promote(root, run, specification):
-    recover_promotion(root)
+    recover_promotion(root, already_locked=True)
     if not run.status()['promotion_ready']:
         raise ValueError('Survey remains partial: finish executable queues, review missing evidence and two no-new rounds before promotion')
     if not specification:
@@ -70,6 +82,8 @@ def promote(root, run, specification):
         raise ValueError('Promotion requires research-to-archive mappings')
     records = spec['records']
     ids = {entry['data']['id'] for entry in records}
+    if len(ids) != len(records):
+        raise ValueError('Duplicate record ID in promotion input')
     mapped = set()
     for mapping in mappings:
         entity = run.state['records'][mapping['entity_id']]
@@ -139,6 +153,6 @@ def promote(root, run, specification):
         journal.unlink()
     except BaseException:
         run.db.rollback()
-        recover_promotion(root)
+        recover_promotion(root, already_locked=True)
         raise
     return {'ok': True, 'records': len(ids), 'files_created': len(created), 'idempotent': not created}

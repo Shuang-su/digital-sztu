@@ -5,6 +5,8 @@ No upstream code is executed. Research edges never enter archive views.
 import base64, hashlib, json, re, subprocess, time
 from datetime import datetime, timezone
 from urllib.parse import urlsplit, urlunsplit, parse_qsl
+from .privacy import CREDENTIAL_PATTERNS
+from .public import public_url
 SCHOOL = re.compile('深圳技术大学|深技大|Shenzhen\\s+Technology\\s+University|(?<![A-Za-z])SZTU(?![A-Za-z])|sztu\\.edu\\.cn', re.I)
 STRONG = re.compile('深圳技术大学|深技大|Shenzhen\\s+Technology\\s+University|sztu\\.edu\\.cn', re.I)
 SCOPED_CATEGORIES = ('secondary-directory', 'campus-adapter-subcomponent', 'campus-information-section', 'campus-system-upstream-reference')
@@ -21,7 +23,7 @@ def digest(b):
 def url(v):
     try:
         p = urlsplit(v or '')
-        if p.scheme not in ('http', 'https') or not p.hostname or p.username or p.password:
+        if not v or not public_url(v):
             return None
         if any((SENSITIVE_QUERY.match(k) for k, _ in parse_qsl(p.query))):
             return None
@@ -42,6 +44,8 @@ def clean(value, n=600):
     if value is None:
         return None
     text = SECRET.sub('[omitted-sensitive-value]', str(value))
+    for pattern in CREDENTIAL_PATTERNS.values():
+        text = pattern.sub('[omitted-sensitive-value]', text)
     text = re.sub('(?i)(password|passwd|cookie|session[_-]?token|api[_-]?key|client[_-]?secret|access[_-]?token)\\s*[=:]\\s*[^\\s<>]+', '[omitted-sensitive-value]', text)
     return re.sub('https?://[^\\s<>]+', lambda m: m[0] if url(m[0]) else '[omitted-sensitive-url]', text)[:n]
 
@@ -150,7 +154,7 @@ class DiscoveryPolicy:
         if any((SENSITIVE_QUERY.match(k) for k, _ in parse_qsl(urlsplit(endpoint).query))):
             raise ValueError('Sensitive query prohibited')
         bucket = 'search' if endpoint.startswith('search/') else 'core'
-        until = self.state.get('blocked_until', {}).get(bucket, 0)
+        until = max(self.state.get('blocked_until', {}).get(bucket, 0), self.state.get('blocked_until', {}).get('all', 0))
         if time.time() < until:
             return (None, {}, 'rate-deferred')
         rate = self.state.get('rate', {}).get(bucket, {})
@@ -204,7 +208,7 @@ class DiscoveryPolicy:
         while cursor:
             data, headers, error = self.api(cursor)
             if error:
-                op.update(status='deferred' if error in ('rate-limit', 'rate-deferred', 'verification-reserve') else 'restricted', error=error, next_endpoint=cursor)
+                op.update(status='deferred' if error in ('rate-limit', 'rate-deferred', 'verification-reserve', 'timeout', 'transport-error') or error.startswith('http-5') else 'restricted', error=error, next_endpoint=cursor)
                 self.save()
                 return False
             items = data.get('items', []) if search else data
@@ -240,6 +244,9 @@ class DiscoveryPolicy:
         if e:
             op.update(status='deferred' if e in ('rate-limit', 'rate-deferred', 'verification-reserve', 'timeout', 'transport-error') or e.startswith('http-5') else 'restricted', error=e)
             return
+        self.profile_data(op, rec, d)
+
+    def profile_data(self, op, rec, d):
         if str(d.get('id')) != rec['id'].split(':')[-1]:
             op.update(status='restricted', error='stable-id-mismatch')
             return
@@ -258,6 +265,11 @@ class DiscoveryPolicy:
             self.account(d, via='public-profile-school-association', anchor=True, priority=22)
         else:
             self.account(d)
+        # Exact zero counts resolve empty lists without another API round trip.
+        for operation, field in (('repos', 'all_public_repositories'), ('followers', 'followers'), ('following', 'following'), ('stars', 'public_stars')):
+            queued = self.state['ops'].get(rec['id'] + '|' + operation)
+            if d.get(field) == 0 and queued and queued['status'] == 'pending' and not queued.get('pages') and not queued.get('next_endpoint'):
+                queued.update(status='complete', returned=0, pages=0, completed_at=now(), completion_evidence='stable-identity-all-public-affiliations-count-zero' if operation == 'repos' else 'stable-identity-profile-count-zero')
         op.update(status='complete', completed_at=now())
 
     def readme(self, op, rec):
@@ -283,6 +295,7 @@ class DiscoveryPolicy:
             op.update(status='restricted', error='decode-error')
             return
         rec['review_readme'] = clean(text, 200000)
+        previous_readme_sha = (rec.get('readme_current') or {}).get('sha')
         proofs = []
         for i, line in enumerate(text.splitlines(), 1):
             if SCHOOL.search(line):
@@ -291,9 +304,12 @@ class DiscoveryPolicy:
                 break
         rec['readme_current_status'] = 'read'
         rec['readme_current'] = {'path': clean(d.get('path')), 'sha': d.get('sha'), 'url': url(d.get('html_url')), 'line_count': len(text.splitlines()), 'accessed_at': now()}
-        if proofs:
-            rec['current_school_candidates'] = proofs
-            self.enqueue(rec['id'], 'relevance-review', 20)
+        rec['current_school_candidates'] = proofs
+        if proofs or (previous_readme_sha and previous_readme_sha != d.get('sha')):
+            key = self.enqueue(rec['id'], 'relevance-review', 20)
+            review = self.state['ops'][key]
+            if previous_readme_sha and previous_readme_sha != d.get('sha') and review['status'] == 'complete':
+                review.update(status='pending', reason='README evidence revision changed')
         links = []
         for m in re.finditer('https?://github\\.com/([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+)', text):
             target = 'https://github.com/' + m[1] + '/' + m[2].removesuffix('.git').rstrip('.')
@@ -302,7 +318,7 @@ class DiscoveryPolicy:
         rec['explicit_repo_links'] = links
         rec['explicit_repo_links_truncated'] = False
         op.update(status='complete', completed_at=now())
-        self.audit('readme_evidence_checked', source_id=rec['id'], school_excerpt_count=len(proofs), lines=len(text.splitlines()), full_text_persisted=False)
+        self.audit('readme_evidence_checked', source_id=rec['id'], school_excerpt_count=len(proofs), lines=len(text.splitlines()), sanitized_readme_persisted=True)
 
     def execute(self, op):
         rec = self.state['records'][op['entity_id']]
@@ -347,7 +363,7 @@ class DiscoveryPolicy:
         identity = {'id': op['id'], 'operation': 'identity-refresh'}
         self.profile(identity, rec)
         if identity.get('status') != 'complete':
-            op.update(status='restricted', error='identity-unverified')
+            op.update(status='deferred' if identity.get('status') == 'deferred' else 'restricted', error=identity.get('error') or 'identity-unverified')
             return
         login = rec['title']
         distance = rec.get('best_unknown_distance', 99)
@@ -360,13 +376,7 @@ class DiscoveryPolicy:
                 return
 
             def receive(row, endpoint):
-                target = self.account(row, parent=sid, via=kind, distance=min(distance + 1, 2), priority=50 if distance == 0 else 80)
-                if not target:
-                    return
-                a, b = (sid, target) if kind == 'following' else (target, sid)
-                proof = self.ev('https://api.github.com/' + endpoint.removeprefix('https://api.github.com/'), kind + ' entry id=' + str(row['id']), row['login'], 'observed-follow-direction-only')
-                eid = self.edge(a, 'follows', b, proof, {'discovered_from': sid, 'list': kind, 'unknown_distance': distance + 1})
-                self.origin(self.state['records'][target], kind, sid, eid)
+                self.receive_account_list(op, rec, row, endpoint)
             self.pages(op, 'users/' + login + '/' + kind + '?per_page=100', receive)
             return
         if kind in ('repos', 'stars'):
@@ -375,26 +385,40 @@ class DiscoveryPolicy:
                 return
 
             def receive(row, endpoint):
-                if row.get('private') is not False:
-                    return
-                text = ' '.join([row.get('full_name', ''), row.get('description') or '', ' '.join(row.get('topics') or [])])
-                rid = 'github-repo:' + str(row['id'])
-                own = kind == 'repos' and str(row.get('owner', {}).get('id')) == sid.split(':')[-1]
-                keep = rid in self.state['records'] or SCHOOL.search(text) or (own and (not row.get('fork'))) or CLUE.search(text)
-                if not keep:
-                    self.state['aggregate']['repo_metadata_nonmatches'] += 1
-                    return
-                r = self.repo(row, sid, kind, priority=60)
-                if not r:
-                    return
-                if kind == 'stars':
-                    self.edge(sid, 'starred', r, self.ev('https://api.github.com/' + endpoint.removeprefix('https://api.github.com/'), 'starred repository id=' + str(row['id']), row['full_name'], 'star observed; not a campus endorsement'), {'discovered_from': sid})
-                if self.state['records'][r]['verification_status'] == 'candidate' and (not row.get('fork')):
-                    self.enqueue(r, 'readme', 35 if SCHOOL.search(text) or CLUE.search(text) else 75)
+                self.receive_account_list(op, rec, row, endpoint)
             endpoint = ('orgs/' if rec.get('account_type') == 'Organization' else 'users/') + login + '/repos?per_page=100&type=all' if kind == 'repos' else 'users/' + login + '/starred?per_page=100'
             self.pages(op, endpoint, receive)
             return
         raise ValueError('Unknown operation ' + kind)
+
+    def receive_account_list(self, op, rec, row, endpoint, locator_prefix=''):
+        kind, sid = op['operation'], rec['id']
+        distance = rec.get('best_unknown_distance', 99)
+        if kind in ('following', 'followers'):
+            target = self.account(row, parent=sid, via=kind, distance=min(distance + 1, 2), priority=50 if distance == 0 else 80)
+            if not target:
+                return
+            a, b = (sid, target) if kind == 'following' else (target, sid)
+            proof = self.ev('https://api.github.com/' + endpoint.removeprefix('https://api.github.com/'), locator_prefix + kind + ' entry id=' + str(row['id']), row['login'], 'observed-follow-direction-only')
+            eid = self.edge(a, 'follows', b, proof, {'discovered_from': sid, 'list': kind, 'unknown_distance': distance + 1})
+            self.origin(self.state['records'][target], kind, sid, eid)
+            return
+        if row.get('private') is not False:
+            return
+        text = ' '.join([row.get('full_name', ''), row.get('description') or '', ' '.join(row.get('topics') or [])])
+        rid = 'github-repo:' + str(row['id'])
+        own = kind == 'repos' and str(row.get('owner', {}).get('id')) == sid.split(':')[-1]
+        keep = rid in self.state['records'] or SCHOOL.search(text) or (own and (not row.get('fork'))) or CLUE.search(text)
+        if not keep:
+            self.state['aggregate']['repo_metadata_nonmatches'] += 1
+            return
+        r = self.repo(row, sid, kind, priority=60)
+        if not r:
+            return
+        if kind == 'stars':
+            self.edge(sid, 'starred', r, self.ev('https://api.github.com/' + endpoint.removeprefix('https://api.github.com/'), locator_prefix + 'starred repository id=' + str(row['id']), row['full_name'], 'star observed; not a campus endorsement'), {'discovered_from': sid})
+        if self.state['records'][r]['verification_status'] == 'candidate' and (not row.get('fork')):
+            self.enqueue(r, 'readme', 35 if SCHOOL.search(text) or CLUE.search(text) else 75)
 
     def seed(self, name, priority=0):
         if '/' in name:

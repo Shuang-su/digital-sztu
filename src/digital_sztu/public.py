@@ -44,6 +44,12 @@ def sensitive_text(text: str) -> bool:
     )
 
 
+def public_file(root: Path, path: Path, directory: Path | None = None) -> bool:
+    return (path.is_file() and not path.is_symlink()
+            and path.resolve().is_relative_to((directory or root).resolve())
+            and not any(parent.is_symlink() for parent in path.parents if parent.is_relative_to(root)))
+
+
 def public_projection(root: Path, records: dict) -> dict:
     """Exclude whole evidence-bearing records if evidence cannot be made public.
 
@@ -60,11 +66,14 @@ def public_projection(root: Path, records: dict) -> dict:
             rid = record["id"]
             privacy = record.get("privacy", {})
             text = json.dumps(record, ensure_ascii=False)
+            safe_files = public_file(root, path)
             if record.get("narrative"):
-                text += (path.parent / record["narrative"]).read_text(encoding="utf-8")
+                narrative = path.parent / record["narrative"]
+                safe_files = safe_files and public_file(root, narrative, path.parent)
+                if safe_files:
+                    text += narrative.read_text(encoding="utf-8")
             prose[rid] = text
-            if (path.is_symlink() or not path.resolve().is_relative_to(root.resolve())
-                    or any(parent.is_symlink() for parent in path.parents if parent.is_relative_to(root))
+            if (not safe_files
                     or privacy.get("indexing") == "exclude" or privacy.get("risk") == "prohibited"
                     or privacy.get("handling") == "restricted" or record.get("status") == "draft"
                     or sensitive_text(text)):
@@ -115,3 +124,26 @@ def dataset_revision(root: Path, records: dict) -> str:
                 item["markdown"] = (path.parent / record["narrative"]).read_text(encoding="utf-8")
             rows.append(item)
     return "sha256:" + sha256_bytes(canonical_json(rows))
+
+
+def check_public_records(root: Path) -> dict:
+    """A release check for canonical files in a public repository.
+
+    Local validation and a filtered view alone cannot protect a Git publication
+    that also contains the canonical files. Report paths and reasons only.
+    """
+    from .validation import collect_repository
+    errors = []
+    for entries in collect_repository(root).values():
+        for path, record in entries:
+            privacy = record.get('privacy', {})
+            text = json.dumps(record, ensure_ascii=False)
+            safe_files = public_file(root, path)
+            if record.get('narrative'):
+                narrative = path.parent / record['narrative']
+                safe_files = safe_files and public_file(root, narrative, path.parent)
+                if safe_files:
+                    text += narrative.read_text(encoding='utf-8')
+            if not safe_files or sensitive_text(text) or privacy.get('risk') == 'prohibited' or privacy.get('handling') == 'restricted':
+                errors.append({'path': path.relative_to(root).as_posix(), 'reason': 'canonical record is not eligible for public Git publication'})
+    return {'ok': not errors, 'errors': errors}

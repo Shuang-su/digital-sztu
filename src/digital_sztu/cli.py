@@ -11,6 +11,7 @@ from typing import Any
 
 from .build import build_indexes, export_knowledge
 from .graph import write_viewer
+from .public import check_public_records
 from .discovery import Research, initialize, research_lock
 from .chat import load_messages, render_chat
 from .ingest import create_manifest
@@ -98,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, help="repository root; defaults to auto-discovery")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    for command in ("doctor", "validate", "build"):
+    for command in ("doctor", "validate", "build", "public-check"):
         item = sub.add_parser(command)
         item.add_argument("--json", action="store_true", dest="as_json")
 
@@ -159,6 +160,8 @@ def main(argv: list[str] | None = None) -> int:
             result = doctor(root)
         elif operation == "validate":
             result = validate_repository(root)
+        elif operation == "public-check":
+            result = check_public_records(root)
         elif operation == "privacy-scan":
             result = scan_privacy(root, strict=args.strict)
         elif operation == "build":

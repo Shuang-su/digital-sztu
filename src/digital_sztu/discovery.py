@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import time
 import sqlite3
 from collections.abc import MutableMapping
 from contextlib import contextmanager
 from pathlib import Path
 
-from .discovery_policy import DiscoveryPolicy, now, digest, clean, url
+from .discovery_policy import DiscoveryPolicy, SCOPED_CATEGORIES, now, digest, clean, url
+from .discovery_graphql import GraphQLReads, LIST_KINDS, OWNER_AFFILIATIONS
 from .utils import atomic_write_text, sha256_file
 
 TABLES = ('records', 'edges', 'ops')
@@ -56,7 +59,7 @@ class Rows(MutableMapping):
         self.original.clear()
 
 
-class Research(DiscoveryPolicy):
+class Research(GraphQLReads, DiscoveryPolicy):
     def __init__(self, path: Path):
         self.path = path
         if path.is_symlink() or not path.is_file():
@@ -93,23 +96,64 @@ class Research(DiscoveryPolicy):
         # Missing README still requires alternative-evidence review, not silent discard.
         manual = self.db.execute("SELECT count(*) FROM ops WHERE json_extract(body,'$.status') NOT IN ('complete','not-applicable','stopped-policy','restricted') AND json_extract(body,'$.operation') IN (?,?,?)", MANUAL).fetchone()[0]
         rounds = self.state.get('no_new_convergence_rounds', 0)
-        eligible = unfinished == 0 and missing == 0 and manual == 0 and rounds >= 2
+        eligible = unfinished == 0 and missing == 0 and manual == 0 and rounds >= 2 and not self.state.get("active_sweep")
         return {'ok': True, 'run_id': self.run_id, 'status': 'converged-with-limitations' if eligible and ops.get('restricted') else 'converged' if eligible else 'partial',
                 'operations': ops, 'pending_by_kind': dict(self.db.execute("SELECT json_extract(body,'$.operation'),count(*) FROM ops WHERE json_extract(body,'$.status') IN ('pending','deferred','running','scoped-review-required','missing') GROUP BY 1")),
                 'records': self.counts('records', 'record_type'), 'verification': self.counts('records', 'verification_status'),
                 'edges': self.db.execute('SELECT count(*) FROM edges').fetchone()[0],
-                'unfinished_pagination': self.db.execute("SELECT count(*) FROM ops WHERE json_extract(body,'$.next_endpoint') IS NOT NULL AND json_extract(body,'$.status') != 'complete'").fetchone()[0],
+                'unfinished_pagination': self.db.execute("SELECT count(*) FROM ops WHERE (json_extract(body,'$.next_endpoint') IS NOT NULL OR json_extract(body,'$.graphql_cursor') IS NOT NULL) AND json_extract(body,'$.status') != 'complete'").fetchone()[0],
                 'no_new_convergence_rounds': rounds, 'promotion_ready': eligible,
                 'rate': self.state.get('rate', {}), 'api_calls': self.state.get('api_calls', 0),
                 'legacy_inputs': self.state.get('legacy_inputs', [])}
 
+    def profile_batch(self, limit=50):
+        """Coalesce public profile reads, while checking each immutable database ID."""
+        keys = [row[0] for row in self.db.execute("SELECT id FROM ops WHERE json_extract(body,'$.operation')='profile' AND json_extract(body,'$.status')='pending' ORDER BY json_extract(body,'$.priority'),json_extract(body,'$.queued_at'),id LIMIT ?", (min(limit, self.state.get('profile_batch_size', 50)),))]
+        if not keys:
+            return 0, None
+        fields = []
+        for index, key in enumerate(keys):
+            rec = self.state['records'][self.state['ops'][key]['entity_id']]
+            organization = rec.get('account_type') == 'Organization'
+            kind = 'organization' if organization else 'user'
+            extra = 'name description' if organization else 'bio company followers(first:1){totalCount} following(first:1){totalCount} starredRepositories(first:1){totalCount}'
+            repository_args = 'first:1,privacy:PUBLIC' + ('' if organization else ',ownerAffiliations:' + OWNER_AFFILIATIONS)
+            fields.append(f'a{index}: {kind}(login:{json.dumps(rec["title"])})' + '{databaseId login url websiteUrl repositories(' + repository_args + '){totalCount} ' + extra + '}')
+        data, error = self.public_query(fields, 'profile', len(keys))
+        if error:
+            return 0, error
+        for index, key in enumerate(keys):
+            op = self.state['ops'][key]
+            rec = self.state['records'][op['entity_id']]
+            row = data.get('a' + str(index))
+            if not row or str(row.get('databaseId')) != rec['id'].split(':')[-1]:
+                # A stale login can now belong to someone else. Resolve the numeric ID.
+                self.profile(op, rec)
+            else:
+                value = {'id': row['databaseId'], 'login': row['login'], 'html_url': row['url'],
+                         'type': rec.get('account_type', 'User'), 'name': row.get('name'), 'description': row.get('description'),
+                         'bio': row.get('bio'), 'company': row.get('company'), 'blog': row.get('websiteUrl'),
+                         'all_public_repositories': row['repositories']['totalCount'],
+                         'followers': (row.get('followers') or {}).get('totalCount'),
+                         'following': (row.get('following') or {}).get('totalCount'),
+                         'public_stars': (row.get('starredRepositories') or {}).get('totalCount')}
+                self.profile_data(op, rec, value)
+            self.save()
+        for table in TABLES:
+            self.state[table].release()
+        return len(keys), None
+
     def resume(self, limit=100, kinds=None):
         handled = set()
+        if not self.state.get('all_affiliations_count_policy'):
+            # Earlier profile optimization used an owned-only count for an all list.
+            self.db.execute("UPDATE ops SET body=json_set(body,'$.status','pending','$.reason','verify all public affiliations') WHERE json_extract(body,'$.operation')='repos' AND json_extract(body,'$.completion_evidence')='stable-identity-profile-count-zero'")
+            self.state['all_affiliations_count_policy'] = True
+            self.audit('list-count-policy-upgraded', reason='owned count cannot prove all affiliations empty')
+            self.save()
         # Refresh the remaining budget once per invocation. Never wait through a rate limit.
-        self.state['rate'] = {}
-        self.state['blocked_until'] = {}
         _, _, error = self.api('rate_limit')
-        if error:
+        if error and (error not in ('rate-limit', 'rate-deferred', 'verification-reserve') or self.state.get('blocked_until', {}).get('all', 0) > time.time()):
             self.save()
             return {**self.status(), 'processed': 0, 'blocked': error}
         # A previous transient error can be tried again, with the same page cursor.
@@ -129,7 +173,25 @@ class Research(DiscoveryPolicy):
                 break
             if selected is None:
                 break
+            if selected.endswith('|profile'):
+                count, blocked = self.profile_batch(min(50, limit - processed))
+                processed += count
+                if blocked == 'query-size-adjusted':
+                    continue
+                if blocked:
+                    return {**self.status(), 'processed': processed, 'blocked': blocked}
+                if count:
+                    continue
             op = self.state['ops'][selected]
+            if op['operation'] in LIST_KINDS and (op.get('pagination_api') == 'graphql' or not op.get('pages') and not op.get('next_endpoint')):
+                count, blocked = self.list_batch(op['operation'], min(25, limit - processed))
+                processed += count
+                if blocked == 'query-size-adjusted':
+                    continue
+                if blocked:
+                    return {**self.status(), 'processed': processed, 'blocked': blocked}
+                if count:
+                    continue
             try:
                 self.execute(op)
                 self.save()
@@ -154,7 +216,8 @@ class Research(DiscoveryPolicy):
     def references(self, rec):
         if rec['verification_status'] != 'confirmed':
             return
-        for address in rec.get('explicit_repo_links', []):
+        addresses = rec.get('reviewed_reference_urls', []) if rec.get('category') in SCOPED_CATEGORIES else rec.get('explicit_repo_links', [])
+        for address in addresses:
             sid = 'github-url:' + digest(address.lower().encode())[:24]
             if sid not in self.state['records']:
                 self.state['records'][sid] = {'id': sid, 'record_type': 'repository-url', 'title': address, 'url': address,
@@ -221,8 +284,10 @@ class Research(DiscoveryPolicy):
             for key in active['operations']:
                 if self.state['ops'][key]['status'] != 'complete':
                     raise ValueError('Restricted or incomplete search cannot prove a no-new round')
-            current = self.db.execute("SELECT count(*) FROM records WHERE json_extract(body,'$.record_type') IN ('repository','external-source') AND json_extract(body,'$.verification_status')='confirmed'").fetchone()[0]
-            added = current - active['baseline_confirmed']
+            current = {row[0] for row in self.db.execute("SELECT id FROM records WHERE json_extract(body,'$.record_type') IN ('repository','external-source') AND json_extract(body,'$.verification_status')='confirmed'")}
+            if 'baseline_confirmed_ids' not in active:
+                raise ValueError('Sweep lacks an identity baseline; review the legacy round explicitly')
+            added = len(current - set(active['baseline_confirmed_ids']))
             self.state['no_new_convergence_rounds'] = self.state.get('no_new_convergence_rounds', 0) + 1 if added == 0 else 0
             self.state.setdefault('sweeps', []).append({**active, 'finished_at': now(), 'new_confirmed': added})
             self.state.pop('active_sweep')
@@ -238,12 +303,12 @@ class Research(DiscoveryPolicy):
             raise ValueError('Supply explicit targeted search queries with --file')
         round_id = len(self.state.get('sweeps', [])) + 1
         operations = []
-        baseline = self.db.execute("SELECT count(*) FROM records WHERE json_extract(body,'$.record_type') IN ('repository','external-source') AND json_extract(body,'$.verification_status')='confirmed'").fetchone()[0]
+        baseline = [row[0] for row in self.db.execute("SELECT id FROM records WHERE json_extract(body,'$.record_type') IN ('repository','external-source') AND json_extract(body,'$.verification_status')='confirmed' ORDER BY id")]
         for query in queries:
             sid = 'search:' + digest((str(round_id) + query).encode())[:24]
             self.state['records'][sid] = {'id': sid, 'record_type': 'search', 'title': query, 'query': query, 'verification_status': 'research-only'}
             operations.append(self.enqueue(sid, 'repository-search', 0))
-        self.state['active_sweep'] = {'round': round_id, 'queries': queries, 'operations': operations, 'baseline_confirmed': baseline, 'started_at': now()}
+        self.state['active_sweep'] = {'round': round_id, 'queries': queries, 'operations': operations, 'baseline_confirmed_ids': baseline, 'started_at': now()}
         self.save()
         return self.status()
 
@@ -261,6 +326,8 @@ class Research(DiscoveryPolicy):
             for proof in item.get('evidence', []):
                 if not proof.get('url') or not url(proof['url']) or not proof.get('locator') or not proof.get('accessed_at'):
                     raise ValueError('Evidence needs a safe public URL, locator and access time')
+            if any(not url(address) for address in item.get('reviewed_reference_urls', [])):
+                raise ValueError('Reviewed references require safe public URLs')
             if item.get('campus_contributors') is not None:
                 if not item.get('contributor_scope_reason') or not item.get('evidence'):
                     raise ValueError('Scoped contributors require diff/commit evidence and a scope reason')
@@ -270,7 +337,7 @@ class Research(DiscoveryPolicy):
         for item in items:
             rec = self.state['records'][item['id']]
             before = rec['verification_status']
-            for key in ('verification_status', 'category', 'relevance_reason', 'gaps', 'derivation_kind', 'count_as_independent_project', 'contributor_scope', 'contributor_scope_reason'):
+            for key in ('verification_status', 'category', 'relevance_reason', 'gaps', 'derivation_kind', 'count_as_independent_project', 'contributor_scope', 'contributor_scope_reason', 'reviewed_reference_urls'):
                 if key in item:
                     rec[key] = item[key]
             for proof in item.get('evidence', []):

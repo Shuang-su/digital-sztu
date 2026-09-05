@@ -175,12 +175,18 @@ def svg_preview(payload):
         x1, y1 = pos[edge['from']]; x2, y2 = pos[edge['to']]
         dash = ' stroke-dasharray="3 5"' if edge['kind'] == 'navigation' else ''
         parts.append(f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" stroke="#b9c5bc" stroke-width="1.1"{dash}/>')
+    label_boxes = []
     for node in nodes:
         x, y = pos[node['id']]
         parts.append(f'<circle cx="{x:.2f}" cy="{y:.2f}" r="5" fill="{COLORS[node["type"]]}"><title>{html.escape(node["label"])}</title></circle>')
         if node['id'] in label_ids:
             title = node['label'][:30] + ('…' if len(node['label']) > 30 else '')
-            parts.append(f'<text x="{x+8:.2f}" y="{y+4:.2f}" font-size="10">{html.escape(title)}</text>')
+            width = sum(10 if ord(char) > 255 else 6 for char in title)
+            left = x + 8 if x + width + 8 < 1070 else x - width - 8
+            box = (left, y - 6, left + width, y + 7)
+            if not any(box[0] < b[2] and box[2] > b[0] and box[1] < b[3] and box[3] > b[1] for b in label_boxes):
+                label_boxes.append(box)
+                parts.append(f'<text x="{left:.2f}" y="{y+4:.2f}" font-size="10">{html.escape(title)}</text>')
     if not nodes:
         parts.append('<text x="42" y="270" font-size="19">暂无可公开展示的正式档案</text>')
     parts += [f'<text x="42" y="550" font-size="13">{len(nodes)} 个档案节点 · {len(edges)} 条关系 · 来源在详情中查看 · 标签最多 40 个</text>',
