@@ -12,7 +12,6 @@ STRONG = re.compile('深圳技术大学|深技大|Shenzhen\\s+Technology\\s+Univ
 SCOPED_CATEGORIES = ('secondary-directory', 'campus-adapter-subcomponent', 'campus-information-section', 'campus-system-upstream-reference')
 CLUE = re.compile('课程|作业|实验|课设|毕设|毕业|论文|校园|教务|选课|评教|学分|校历|本科|数据结构|编译原理|云计算|srun|\\bACM\\b|机器人|社团|协会|\\bOJ\\b|assignment|homework|course|\\blab\\b|thesis|robomaster|robot|snail|openharmony|\\bFSR\\b', re.I)
 SENSITIVE_QUERY = re.compile('^(?:access[_-]?token|token|password|passwd|pwd|secret|api[_-]?key|cookie|signature|credential|authorization|auth|session|sessionid|jsessionid|sso[_-]?ticket|xsid|student[_-]?(?:id|no)|ticket)$', re.I)
-SECRET = re.compile('(?:github_pat_|ghp_|glpat-|sk-)[A-Za-z0-9_\\-]{20,}|Bearer\\s+[A-Za-z0-9._~+/=\\-]{20,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?<!\\d)\\d{17}[0-9Xx](?!\\d)', re.I)
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
@@ -43,7 +42,7 @@ def excerpt(t):
 def clean(value, n=600):
     if value is None:
         return None
-    text = SECRET.sub('[omitted-sensitive-value]', str(value))
+    text = str(value)
     for pattern in CREDENTIAL_PATTERNS.values():
         text = pattern.sub('[omitted-sensitive-value]', text)
     text = re.sub('(?i)(password|passwd|cookie|session[_-]?token|api[_-]?key|client[_-]?secret|access[_-]?token)\\s*[=:]\\s*[^\\s<>]+', '[omitted-sensitive-value]', text)
@@ -145,6 +144,9 @@ class DiscoveryPolicy:
             if p:
                 rec['fork_of'] = p
                 self.edge(sid, 'fork-of', p, self.ev('https://api.github.com/repos/' + row['full_name'], 'JSON parent.id', str(row['parent']['id'])), {'via': 'repository-parent-metadata'})
+                if self.state['records'][p]['verification_status'] == 'candidate':
+                    self.enqueue(p, 'readme', 80)
+                    self.enqueue(p, 'relevance-review', 85)
         return sid
 
     def api(self, endpoint):
@@ -239,6 +241,23 @@ class DiscoveryPolicy:
                 return False
         return True
 
+    def rebase_cursor(self, op, endpoint):
+        """After numeric identity verification, keep the page on the current slug."""
+        current = op.get('next_endpoint')
+        if not current:
+            return
+        old, target = urlsplit(current), urlsplit(endpoint)
+        old_parts, new_parts = old.path.strip('/').split('/'), target.path.strip('/').split('/')
+        if (old.hostname not in (None, 'api.github.com') or old.username or old.password
+                or len(old_parts) != len(new_parts) or old_parts[-1] != new_parts[-1]
+                or old_parts[0] not in ('repos', 'users', 'orgs')
+                or (old_parts[0] == 'repos') != (new_parts[0] == 'repos')):
+            raise ValueError('Pagination endpoint does not belong to this verified list')
+        refreshed = urlunsplit(('https', 'api.github.com', '/' + target.path.lstrip('/'), old.query, ''))
+        if refreshed != current:
+            op['next_endpoint'] = refreshed
+            self.audit('pagination-identity-rebased', operation_id=op['id'], previous=clean(current), current=clean(refreshed))
+
     def profile(self, op, rec):
         d, h, e = self.api('user/' + rec['id'].split(':')[-1])
         if e:
@@ -279,6 +298,10 @@ class DiscoveryPolicy:
             return
         if str(metadata.get('id')) != rec['id'].split(':')[-1]:
             op.update(status='restricted', error='stable-id-mismatch')
+            return
+        if metadata.get('private') is not False:
+            op.update(status='restricted', error='repository-not-public')
+            rec['readme_current_status'] = 'restricted'
             return
         self.repo(metadata, via='readme-stable-id-refresh')
         d, h, e = self.api('repos/' + rec['title'] + '/readme')
@@ -333,6 +356,9 @@ class DiscoveryPolicy:
             if e:
                 op.update(status='deferred' if e in ('rate-limit', 'rate-deferred', 'verification-reserve', 'timeout', 'transport-error') or e.startswith('http-5') else 'restricted', error=e)
                 return
+            if str(d.get('id')) != sid.split(':')[-1] or d.get('private') is not False:
+                op.update(status='restricted', error='repository-not-public-or-identity-mismatch')
+                return
             self.repo(d, via='metadata-refresh')
             if self.state['records'][sid]['verification_status'] == 'candidate':
                 self.enqueue(sid, 'readme', 38)
@@ -348,6 +374,20 @@ class DiscoveryPolicy:
             if rec.get('is_fork') or rec.get('category') in SCOPED_CATEGORIES or rec.get('contributor_scope') == 'campus-delta-required':
                 op.update(status='scoped-review-required', error='do-not-expand-upstream-contributors')
                 return
+            metadata, _, error = self.api('repositories/' + sid.split(':')[-1])
+            if error:
+                op.update(status='restricted' if error in ('http-404', 'http-451') else 'deferred', error=error)
+                return
+            if str(metadata.get('id')) != sid.split(':')[-1]:
+                op.update(status='restricted', error='stable-id-mismatch')
+                return
+            if metadata.get('private') is not False:
+                op.update(status='restricted', error='repository-not-public')
+                return
+            self.repo(metadata, via='contributor-list-identity-refresh')
+            if rec.get('is_fork'):
+                op.update(status='scoped-review-required', error='do-not-expand-upstream-contributors')
+                return
 
             def receive(row, endpoint):
                 aid = self.account(row, parent=sid, via='repository-contributor', anchor=rec.get('verification_status') == 'confirmed' or rec.get('user_requested_seed'), priority=18)
@@ -358,7 +398,9 @@ class DiscoveryPolicy:
                 self.state['records'][aid].setdefault('contributed_repository_ids', [])
                 if sid not in self.state['records'][aid]['contributed_repository_ids']:
                     self.state['records'][aid]['contributed_repository_ids'].append(sid)
-            self.pages(op, 'repos/' + rec['title'] + '/contributors?per_page=100&anon=false', receive)
+            endpoint = 'repos/' + rec['title'] + '/contributors?per_page=100&anon=false'
+            self.rebase_cursor(op, endpoint)
+            self.pages(op, endpoint, receive)
             return
         identity = {'id': op['id'], 'operation': 'identity-refresh'}
         self.profile(identity, rec)
@@ -377,7 +419,9 @@ class DiscoveryPolicy:
 
             def receive(row, endpoint):
                 self.receive_account_list(op, rec, row, endpoint)
-            self.pages(op, 'users/' + login + '/' + kind + '?per_page=100', receive)
+            endpoint = 'users/' + login + '/' + kind + '?per_page=100'
+            self.rebase_cursor(op, endpoint)
+            self.pages(op, endpoint, receive)
             return
         if kind in ('repos', 'stars'):
             if kind == 'stars' and rec.get('account_type') == 'Organization':
@@ -387,6 +431,7 @@ class DiscoveryPolicy:
             def receive(row, endpoint):
                 self.receive_account_list(op, rec, row, endpoint)
             endpoint = ('orgs/' if rec.get('account_type') == 'Organization' else 'users/') + login + '/repos?per_page=100&type=all' if kind == 'repos' else 'users/' + login + '/starred?per_page=100'
+            self.rebase_cursor(op, endpoint)
             self.pages(op, endpoint, receive)
             return
         raise ValueError('Unknown operation ' + kind)

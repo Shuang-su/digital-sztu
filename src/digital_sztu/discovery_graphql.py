@@ -95,6 +95,11 @@ class GraphQLReads:
             return None, 'graphql-error'
         if not data:
             self.audit('graphql-read-error', purpose=purpose, status=status, reason='no-data')
+            if status is not None and status >= 500 and size > 1:
+                self.state[purpose + '_batch_size'] = max(1, size // 2)
+                self.audit('graphql-query-size-reduced', purpose=purpose, previous=size, next=self.state[purpose + '_batch_size'])
+                self.save()
+                return None, 'query-size-adjusted'
             self.save()
             return None, 'graphql-unavailable'
         self.audit('graphql-public-read', purpose=purpose, requested=size, rate=rate)
@@ -161,7 +166,9 @@ class GraphQLReads:
                 if page['hasNextPage'] and (not cursor or cursor == op.get('graphql_cursor')):
                     raise ValueError('Pagination cursor did not advance')
                 convert = repository_row if kind in ('repos', 'stars') else account_row
-                rows = [convert(row) for row in connection['nodes']]
+                private_count = sum(isinstance(row, dict) and row.get('isPrivate') is True for row in connection['nodes']) if kind in ('repos', 'stars') else 0
+                rows = [convert(row) for row in connection['nodes']
+                        if not (kind in ('repos', 'stars') and isinstance(row, dict) and row.get('isPrivate') is True)]
             except (ValueError, KeyError, TypeError) as exc:
                 op.update(status='deferred', error=clean(str(exc)))
                 self.audit('graphql-list-incomplete', operation_id=key, reason=op['error'])
@@ -171,7 +178,8 @@ class GraphQLReads:
                 self.receive_account_list(op, rec, row, 'graphql',
                     locator_prefix=kind + ' of account id=' + str(item['databaseId']) + '; after=' + str(op.get('graphql_cursor')) + '; ')
             op.update(pagination_api='graphql', graphql_cursor=cursor, pages=op.get('pages', 0) + 1,
-                      returned=op.get('returned', 0) + len(rows), total_count=connection['totalCount'],
+                      returned=op.get('returned', 0) + len(connection['nodes']), total_count=connection['totalCount'],
+                      nonpublic_omitted=op.get('nonpublic_omitted', 0) + private_count,
                       last_observed_at=now(), status='pending' if cursor else 'complete')
             op.pop('error', None)
             if not cursor:

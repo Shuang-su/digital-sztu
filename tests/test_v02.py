@@ -550,3 +550,83 @@ class PublicBoundaryTests(unittest.TestCase):
             self.assertEqual(result['scanned_files'],1)
             self.assertTrue(any(f['kind']=='github-token' and f['line']==9001 for f in result['findings']))
             self.assertNotIn(secret,json.dumps(result))
+
+
+class GraphQLPrivacyTests(unittest.TestCase):
+    setUp=ResearchTests.setUp
+    tearDown=ResearchTests.tearDown
+    account=ResearchTests.account
+
+    def test_private_star_metadata_is_never_retained(self):
+        from types import SimpleNamespace
+        sid=self.account(distance=2);self.run.save()
+        response={'data':{'a0':{'databaseId':7,'results':{'totalCount':1,'pageInfo':{'hasNextPage':False,'endCursor':None},'nodes':[{'isPrivate':True,'nameWithOwner':'private-label-marker'}]}}}}
+        with patch('digital_sztu.discovery.subprocess.run',return_value=SimpleNamespace(stdout=json.dumps(response),returncode=0)):
+            self.run.list_batch('stars')
+        op=self.run.state['ops'][sid+'|stars']
+        self.assertEqual((op['status'],op['returned'],op['nonpublic_omitted']),('complete',1,1))
+        for table in ('records','edges','ops','audit'):
+            self.assertFalse(any('private-label-marker' in row[0] for row in self.run.db.execute('SELECT body FROM '+table)))
+
+    def test_json_gateway_failure_reduces_batch_without_completing_profiles(self):
+        from types import SimpleNamespace
+        sid=self.account(anchor=True);self.account(8,anchor=True);self.run.save()
+        reply='HTTP/2.0 504 Gateway Timeout\nContent-Type: application/json\n\n{"message":"timeout"}'
+        with patch('digital_sztu.discovery.subprocess.run',return_value=SimpleNamespace(stdout=reply,returncode=1)):
+            self.assertEqual(self.run.profile_batch(),(0,'query-size-adjusted'))
+        self.assertEqual(self.run.state['ops'][sid+'|profile']['status'],'pending')
+        self.assertEqual(self.run.state['profile_batch_size'],1)
+
+
+class CredentialBoundaryTests(unittest.TestCase):
+    def test_public_repository_names_and_blob_hashes_remain_readable(self):
+        from digital_sztu.discovery_policy import clean
+        from digital_sztu.public import sensitive_text
+        for value in ('https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way','10135a'+'123456789012345678'+'db93f821e1776d0a'):
+            self.assertEqual(clean(value),value)
+            self.assertFalse(sensitive_text(value))
+        self.assertTrue(sensitive_text('credential: sk-'+'X'*30))
+        self.assertTrue(sensitive_text('证件号码：'+'123456789012345678'))
+
+
+class RestCursorIdentityTests(unittest.TestCase):
+    setUp=ResearchTests.setUp
+    tearDown=ResearchTests.tearDown
+    account=ResearchTests.account
+
+    def test_renamed_account_keeps_page_number_and_uses_verified_login(self):
+        sid=self.account(distance=1)
+        op=self.run.state['ops'][sid+'|followers'];op.update(pages=2,returned=200,next_endpoint='https://api.github.com/users/user7/followers?per_page=100&page=3')
+        requests=[]
+        def api(endpoint):
+            requests.append(endpoint)
+            if endpoint=='user/7':return {'id':7,'login':'renamed','html_url':'https://github.com/renamed','type':'User'}, {}, None
+            return [],{},None
+        with patch.object(self.run,'api',side_effect=api):self.run.execute(op)
+        self.assertIn('https://api.github.com/users/renamed/followers?per_page=100&page=3',requests)
+        self.assertEqual((op['pages'],op['returned'],op['status']),(3,200,'complete'))
+
+    def test_cursor_for_another_list_is_not_silently_reinterpreted(self):
+        op={'id':'test','next_endpoint':'https://api.github.com/users/old/starred?page=2'}
+        with self.assertRaises(ValueError):self.run.rebase_cursor(op,'users/new/followers?per_page=100')
+        self.assertEqual(op['next_endpoint'],'https://api.github.com/users/old/starred?page=2')
+
+    def test_repository_becoming_private_stops_before_content_or_contributors(self):
+        sid='github-repo:9';rec={'id':sid,'record_type':'repository','title':'former/public','verification_status':'confirmed','is_fork':False}
+        self.run.state['records'][sid]=rec
+        for kind in ('readme','contributors','metadata'):
+            op={'id':sid+'|'+kind,'entity_id':sid,'operation':kind,'status':'pending'}
+            with patch.object(self.run,'api',return_value=({'id':9,'private':True},{},None)) as api:
+                self.run.execute(op)
+            self.assertEqual(op['status'],'restricted')
+            self.assertEqual(api.call_count,1)
+            self.assertEqual(api.call_args.args[0],'repositories/9')
+
+    def test_fork_parent_remains_a_reviewable_source(self):
+        owner={'id':7,'login':'user7','html_url':'https://github.com/user7','type':'User'}
+        parent={'id':90,'full_name':'user7/original','html_url':'https://github.com/user7/original','private':False,'fork':False,'owner':owner}
+        fork={**parent,'id':91,'full_name':'user7/fork','html_url':'https://github.com/user7/fork','fork':True,'parent':parent}
+        self.run.repo(fork)
+        self.assertIn('github-repo:90|readme',self.run.state['ops'])
+        self.assertIn('github-repo:90|relevance-review',self.run.state['ops'])
+        self.assertNotIn('github-repo:90|contributors',self.run.state['ops'])

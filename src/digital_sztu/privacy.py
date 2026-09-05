@@ -43,13 +43,13 @@ CREDENTIAL_PATTERNS = {
     "private-key": re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "github-token": re.compile(r"(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}"),
     "gitlab-token": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
-    "openai-key": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    "openai-key": re.compile(r"(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}"),
     "aws-access-key": re.compile(r"(?:AKIA|ASIA)[A-Z0-9]{16}"),
     "google-api-key": re.compile(r"AIza[A-Za-z0-9_-]{30,}"),
     "slack-token": re.compile(r"xox[baprs]-[A-Za-z0-9-]{20,}"),
     "bearer-token": re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}", re.I),
     "jwt": re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-    "cn-id-number": re.compile(r"(?<!\d)\d{17}[0-9Xx](?!\d)"),
+    "cn-id-number": re.compile(r"(?<![A-Za-z0-9])\d{17}[0-9Xx](?![A-Za-z0-9])"),
     "password-assignment": re.compile(
         r"['\"]?(?:password|passwd|cookie|session[_-]?token)['\"]?"
         r"\s*[:=]\s*['\"]?[A-Za-z0-9._~+/=-]{8,}",

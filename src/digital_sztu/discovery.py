@@ -151,6 +151,16 @@ class Research(GraphQLReads, DiscoveryPolicy):
             self.state['all_affiliations_count_policy'] = True
             self.audit('list-count-policy-upgraded', reason='owned count cannot prove all affiliations empty')
             self.save()
+        if not self.state.get('fork_parent_review_policy'):
+            parents = self.db.execute("SELECT DISTINCT json_extract(body,'$.fork_of') FROM records WHERE json_extract(body,'$.fork_of') IS NOT NULL").fetchall()
+            for (parent_id,) in parents:
+                parent = self.state['records'].get(parent_id)
+                if parent and parent.get('verification_status') == 'candidate':
+                    self.enqueue(parent_id, 'readme', 80)
+                    self.enqueue(parent_id, 'relevance-review', 85)
+            self.state['fork_parent_review_policy'] = True
+            self.audit('fork-parent-review-policy-upgraded', reason='retaining a duplicate fork must not lose an unread original source')
+            self.save()
         # Refresh the remaining budget once per invocation. Never wait through a rate limit.
         _, _, error = self.api('rate_limit')
         if error and (error not in ('rate-limit', 'rate-deferred', 'verification-reserve') or self.state.get('blocked_until', {}).get('all', 0) > time.time()):
