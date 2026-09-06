@@ -7,6 +7,7 @@ import time
 from datetime import datetime
 
 from .discovery_policy import clean, now
+from .runtime import require_storage
 
 LIST_KINDS = ('repos', 'stars', 'followers', 'following')
 OWNER_AFFILIATIONS = '[OWNER,COLLABORATOR,ORGANIZATION_MEMBER]'
@@ -55,13 +56,38 @@ class GraphQLReads:
 
     def public_query(self, fields, purpose, size):
         """Only constructed query fields are accepted; no user-provided executable query."""
+        for attempt, delay in enumerate((5, 15, 45, None), start=1):
+            require_storage(self.path.parent)
+            data, error = self._public_query_once(fields, purpose, size)
+            if error != 'graphql-unavailable' or delay is None:
+                return data, error
+            # Retry the same read and cursor; never promote a failed page to complete.
+            self.audit('graphql-retry', purpose=purpose, attempt=attempt,
+                       next_attempt=attempt + 1, wait_seconds=delay)
+            self.save()
+            callback = getattr(self, '_progress_callback', None)
+            if callback:
+                callback({'event': 'discovery-retry', 'run_id': self.run_id,
+                          'purpose': purpose, 'error': error, 'attempt': attempt,
+                          'next_attempt': attempt + 1, 'max_attempts': 4,
+                          'wait_seconds': delay})
+            time.sleep(delay)
+
+    def _graphql_block(self, headers, budget, primary):
+        retry = max(time.time() + int(headers.get('retry-after', '60')),
+                    int(headers.get('x-ratelimit-reset', '0')) if primary else 0)
+        if primary and 'x-ratelimit-reset' not in headers:
+            retry = max(retry, budget.get('reset', 0), time.time() + 3600)
+        self.state.setdefault('blocked_until', {})['graphql' if primary else 'all'] = retry
+
+    def _public_query_once(self, fields, purpose, size):
         budget = self.state.get('rate', {}).get('graphql', {})
         if budget.get('remaining', 5000) < 200 and budget.get('reset', 0) > time.time():
             return None, 'verification-reserve'
         if max(self.state.get('blocked_until', {}).get(key, 0) for key in ('graphql', 'all')) > time.time():
             return None, 'rate-deferred'
         query = 'query {' + ' '.join(fields) + ' rateLimit {cost remaining resetAt}}'
-        status = None
+        status, headers = None, {}
         self.state['api_calls'] += 1
         try:
             process = subprocess.run(['gh', 'api', 'graphql', '--input', '-', '--include'],
@@ -80,11 +106,32 @@ class GraphQLReads:
                 raise ValueError('Unexpected response')
         except (subprocess.TimeoutExpired, ValueError):
             self.audit('graphql-read-error', purpose=purpose, status=status, reason='timeout-or-invalid-response')
+            # Gate on HTTP status even when an auth/rate response is not JSON.
+            if status in (403, 429) or (status is not None and status >= 500 and headers.get('retry-after')):
+                self._graphql_block(headers, budget, headers.get('x-ratelimit-remaining') == '0')
+                self.save()
+                return None, 'graphql-error'
+            if status is not None and 400 <= status < 500:
+                self.save()
+                return None, 'graphql-http-' + str(status)
             if (status is None or status >= 500) and self.reduce_query_size(purpose, size):
                 self.save()
                 return None, 'query-size-adjusted'
             self.save()
             return None, 'graphql-unavailable'
+        if status is not None and status >= 500:
+            self.audit('graphql-read-error', purpose=purpose, status=status, reason='server-error')
+            if headers.get('retry-after'):
+                self._graphql_block(headers, budget, False)
+                self.save()
+                return None, 'graphql-error'
+            adjusted = self.reduce_query_size(purpose, size)
+            self.save()
+            return None, 'query-size-adjusted' if adjusted else 'graphql-unavailable'
+        if status == 401:
+            self.audit('graphql-read-error', purpose=purpose, status=status, reason='authentication-required')
+            self.save()
+            return None, 'graphql-http-401'
         data = result.get('data') or {}
         rate = data.get('rateLimit')
         if rate:
@@ -96,19 +143,17 @@ class GraphQLReads:
             return None, 'query-size-adjusted'
         primary = headers.get('x-ratelimit-remaining') == '0' or any(error.get('type') == 'RATE_LIMITED' for error in errors)
         if status in (403, 429) or any(error.get('type') != 'NOT_FOUND' for error in errors):
-            retry = max(time.time() + int(headers.get('retry-after', '60')), int(headers.get('x-ratelimit-reset', '0')) if primary else 0)
-            if primary and 'x-ratelimit-reset' not in headers:
-                retry = max(retry, budget.get('reset', 0), time.time() + 3600)
-            self.state.setdefault('blocked_until', {})['graphql' if primary else 'all'] = retry
+            self._graphql_block(headers, budget, primary)
             self.audit('graphql-read-error', purpose=purpose, types=sorted({str(error.get('type')) for error in errors}), status=status,
                        messages=[clean(error.get('message'), 500) for error in errors[:5]])
             self.save()
             return None, 'graphql-error'
+        if status is not None and 400 <= status < 500:
+            self.audit('graphql-read-error', purpose=purpose, status=status, reason='http-error')
+            self.save()
+            return None, 'graphql-http-' + str(status)
         if not data:
             self.audit('graphql-read-error', purpose=purpose, status=status, reason='no-data')
-            if status is not None and status >= 500 and self.reduce_query_size(purpose, size):
-                self.save()
-                return None, 'query-size-adjusted'
             self.save()
             return None, 'graphql-unavailable'
         self.audit('graphql-public-read', purpose=purpose, requested=size, rate=rate)
