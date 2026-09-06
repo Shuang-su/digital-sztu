@@ -45,7 +45,7 @@ class PublicReleaseTests(unittest.TestCase):
 
     def test_nested_json_credentials_are_blocked_in_records_and_streams(self):
         secret = 'fixture-' + 'unusable-password'
-        for depth in (2, 4):
+        for depth in (2, 4, 8):
             nested = json.dumps({'password': secret})
             for _ in range(depth):
                 nested = json.dumps(nested)
