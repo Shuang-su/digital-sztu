@@ -44,6 +44,15 @@ def repository_query(index, name, fields):
 
 class ReadmeReads:
     def readme_batch(self, limit=8):
+        try:
+            return self._readme_batch(limit)
+        finally:
+            # Every exit, including empty/private batches and fallbacks, must
+            # release decoded rows. Committed pages remain in SQLite.
+            for table in ('records', 'edges', 'ops'):
+                self.state[table].release()
+
+    def _readme_batch(self, limit=8):
         keys = [row[0] for row in self.db.execute("""SELECT id FROM ops
             WHERE json_extract(body,'$.operation')='readme' AND json_extract(body,'$.status')='pending'
             AND coalesce(json_extract(body,'$.readme_rest_required'),0)=0
@@ -139,6 +148,4 @@ class ReadmeReads:
             self.references(rec)
             op.update(readme_transport='graphql-verified-blob', completed_at=now())
             self.save()
-        for table in ('records', 'edges', 'ops'):
-            self.state[table].release()
         return len(keys), None

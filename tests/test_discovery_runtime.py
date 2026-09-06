@@ -173,6 +173,31 @@ class RuntimeTests(unittest.TestCase):
         finally:
             reader.close()
 
+    def test_repeated_private_readme_batches_release_rows_and_preserve_results(self):
+        for i in range(24):
+            sid = 'github-repo:' + str(100 + i)
+            self.run.state['records'][sid] = {'id': sid, 'record_type': 'repository',
+                                              'title': 'fixture/repo' + str(i), 'verification_status': 'candidate'}
+            self.run.enqueue(sid, 'readme', 10)
+        self.run.save()
+        for table in ('records', 'edges', 'ops'):
+            self.run.state[table].release()
+        def private_response(fields, purpose, size):
+            keys = [r[0] for r in self.run.db.execute(
+                "SELECT id FROM ops WHERE json_extract(body,'$.operation')='readme' AND json_extract(body,'$.status')='pending' ORDER BY id LIMIT 8")]
+            return {'a' + str(i): {'databaseId': int(key.split(':')[1].split('|')[0]),
+                                   'isPrivate': True} for i, key in enumerate(keys)}, None
+        with patch.object(self.run, 'public_query', side_effect=private_response):
+            for batch in range(3):
+                self.assertEqual(self.run.readme_batch(8), (8, None))
+                for table in ('records', 'edges', 'ops'):
+                    self.assertEqual(self.run.state[table].cache, {})
+                    self.assertEqual(self.run.state[table].original, {})
+                self.assertEqual(self.run.counts('ops', 'status').get('restricted'), (batch + 1) * 8)
+        self.run.close(); self.run = Research(self.path)
+        self.assertEqual(self.run.counts('ops', 'status')['restricted'], 24)
+        self.assertEqual(self.run.state['ops'][self.key]['next_endpoint'], 'page-4')
+
     def test_doctor_detects_moved_worktree_and_invalid_venv(self):
         (self.root/'.git').write_text('gitdir: /missing/old/location')
         (self.root/'.venv').mkdir()
