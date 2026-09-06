@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import os
+import json
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -143,6 +144,28 @@ def _looks_like_text(path: Path) -> bool:
         return False
 
 
+def decoded_json_views(text: str) -> Iterable[str]:
+    """Inspect eight nested string layers plus their containing JSON field.
+
+    Decode complete string tokens, preserving surrounding assignment context.
+    Each pass shrinks or stabilizes the text; the bound limits work for deeply
+    nested untrusted input. Physical JSON lines can be processed independently.
+    """
+    def decode(match: re.Match[str]) -> str:
+        try:
+            return json.loads(match.group())
+        except ValueError:
+            return match.group()
+
+    yield text
+    for _ in range(9):
+        decoded = re.sub(r'"(?:[^"\\]|\\.)*"', decode, text)
+        if decoded == text:
+            return
+        yield decoded
+        text = decoded
+
+
 def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     scanned = 0
@@ -177,8 +200,11 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
         try:
             with path.open("r", encoding="utf-8") as handle:
                 for number, line in enumerate(handle, 1):
+                    inspected = (line,)
+                    if suffix in {".json", ".jsonl"}:
+                        inspected = tuple(decoded_json_views(line))
                     for kind, pattern in CREDENTIAL_PATTERNS.items():
-                        for match in pattern.finditer(line):
+                        if any(pattern.search(view) for view in inspected):
                             findings.append(
                                 _finding(
                                     "block" if strict else "review",
@@ -189,7 +215,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
                                 )
                             )
                     for kind, pattern in REVIEW_PATTERNS.items():
-                        for match in pattern.finditer(line):
+                        if any(pattern.search(view) for view in inspected):
                             findings.append(
                                 _finding(
                                     "review",

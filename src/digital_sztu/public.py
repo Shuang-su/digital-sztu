@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 import ipaddress
 
-from .privacy import CREDENTIAL_PATTERNS
+from .privacy import CREDENTIAL_PATTERNS, decoded_json_views
 from .utils import canonical_json, sha256_bytes, extract_wikilinks
 
 SECRET_QUERY = re.compile(
@@ -40,10 +40,19 @@ def public_url(value: str | None) -> bool:
 
 
 def sensitive_text(text: str) -> bool:
-    return any(pattern.search(text) for pattern in CREDENTIAL_PATTERNS.values()) or any(
-        not public_url(value.rstrip(".,;"))
-        for value in re.findall(r'https?://[^\s<>"\)\]]+', text)
-    )
+    for view in decoded_json_views(text):
+        if any(pattern.search(view) for pattern in CREDENTIAL_PATTERNS.values()) or any(
+            not public_url(value.rstrip(".,;"))
+            for value in re.findall(r'https?://[^\s<>"\)\]]+', view)
+        ):
+            return True
+    return False
+
+
+def record_text(record: dict) -> str:
+    # Preserve field boundaries; sensitive_text inspects each decoding layer
+    # independently, without joining unrelated fields or representations.
+    return json.dumps(record, ensure_ascii=False)
 
 
 def public_file(root: Path, path: Path, directory: Path | None = None) -> bool:
@@ -67,7 +76,7 @@ def public_projection(root: Path, records: dict) -> dict:
         for path, record in items:
             rid = record["id"]
             privacy = record.get("privacy", {})
-            text = json.dumps(record, ensure_ascii=False)
+            text = record_text(record)
             safe_files = public_file(root, path)
             if record.get("narrative"):
                 narrative = path.parent / record["narrative"]
@@ -139,7 +148,7 @@ def check_public_records(root: Path) -> dict:
     for entries in collect_repository(root).values():
         for path, record in entries:
             privacy = record.get('privacy', {})
-            text = json.dumps(record, ensure_ascii=False)
+            text = record_text(record)
             safe_files = public_file(root, path)
             if record.get('narrative'):
                 narrative = path.parent / record['narrative']

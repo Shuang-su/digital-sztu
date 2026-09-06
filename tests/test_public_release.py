@@ -14,6 +14,84 @@ from digital_sztu.build import build_indexes, export_knowledge
 
 
 class PublicReleaseTests(unittest.TestCase):
+    def test_quoted_assignment_in_record_prose_cannot_hide_behind_json_escaping(self):
+        repo = ExampleRepository()
+        try:
+            event = repo.event()
+            secret = 'fixture-' + 'unusable-password'
+            event['summary'] = json.dumps({'password': secret})
+            write_json(repo.event_path, event)
+            result = check_public_records(repo.root)
+            self.assertFalse(result['ok'])
+            self.assertNotIn(secret, json.dumps(result))
+            projection = public_projection(repo.root, {'event': [(repo.event_path, event)]})
+            self.assertFalse(projection.get('event'))
+        finally:
+            repo.close()
+
+    def test_json_escaped_strings_and_unicode_keys_are_scanned_without_echo(self):
+        secret = 'fixture-' + 'unusable-password'
+        variants = [json.dumps({'text': json.dumps({'password': secret})}),
+                    '{"\\u0070assword": ' + json.dumps(secret) + '}']
+        for suffix in ('.json', '.jsonl'):
+            for text in variants:
+                with self.subTest(suffix=suffix, text=text), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    (root / ('data' + suffix)).write_text(text)
+                    result = scan_privacy(root, strict=True)
+                    self.assertFalse(result['ok'])
+                    self.assertNotIn(secret, json.dumps(result))
+                    self.assertEqual(result['counts']['block'], 1)
+
+    def test_nested_json_credentials_are_blocked_in_records_and_streams(self):
+        secret = 'fixture-' + 'unusable-password'
+        for depth in (2, 4, 8):
+            nested = json.dumps({'password': secret})
+            for _ in range(depth):
+                nested = json.dumps(nested)
+            repo = ExampleRepository()
+            try:
+                event = repo.event()
+                event['summary'] = nested
+                write_json(repo.event_path, event)
+                self.assertFalse(check_public_records(repo.root)['ok'])
+                self.assertFalse(public_projection(repo.root, {'event': [(repo.event_path, event)]}).get('event'))
+                result = scan_privacy(repo.root, strict=True)
+                self.assertFalse(result['ok'])
+                self.assertNotIn(secret, json.dumps(result))
+            finally:
+                repo.close()
+
+    def test_decoded_advisory_matches_are_deduplicated_and_do_not_block(self):
+        for suffix in ('.json', '.jsonl'):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                payload = json.dumps({'text': 'alice@example.com; 学号: ABC123456'})
+                payload = payload.replace('@', r'\u0040')
+                (root / ('data' + suffix)).write_text(payload)
+                result = scan_privacy(root, strict=True)
+                self.assertTrue(result['ok'])
+                self.assertEqual(sorted(row['kind'] for row in result['findings']), ['email', 'student-id-label'])
+                self.assertTrue(all(row['line'] == 1 for row in result['findings']))
+
+    def test_decoding_layers_do_not_create_cross_view_assignments(self):
+        harmless = json.dumps('"password" password:')
+        self.assertFalse(sensitive_text(harmless))
+        for suffix in ('.json', '.jsonl'):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / ('data' + suffix)).write_text(harmless)
+                self.assertTrue(scan_privacy(root, strict=True)['ok'])
+        repo = ExampleRepository()
+        try:
+            event = repo.event()
+            event['summary'] = harmless
+            write_json(repo.event_path, event)
+            self.assertTrue(check_public_records(repo.root)['ok'])
+            self.assertTrue(public_projection(repo.root, {'event': [(repo.event_path, event)]})['event'])
+        finally:
+            repo.close()
+
     def test_standard_private_key_headers_are_blocked(self):
         for prefix in ('', 'RSA ', 'DSA ', 'EC ', 'OPENSSH ', 'ENCRYPTED ', 'PGP '):
             with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as temporary:
