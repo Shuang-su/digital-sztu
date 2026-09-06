@@ -46,6 +46,22 @@ def sensitive_text(text: str) -> bool:
     )
 
 
+def record_text(record: dict) -> str:
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, item in value.items():
+                yield key
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+    # Keep object key/value context and also inspect decoded prose. Serializing
+    # prose alone would hide quoted assignments behind JSON backslash escapes.
+    return json.dumps(record, ensure_ascii=False) + "\n" + "\n".join(strings(record))
+
+
 def public_file(root: Path, path: Path, directory: Path | None = None) -> bool:
     return (path.is_file() and not path.is_symlink()
             and path.resolve().is_relative_to((directory or root).resolve())
@@ -67,7 +83,7 @@ def public_projection(root: Path, records: dict) -> dict:
         for path, record in items:
             rid = record["id"]
             privacy = record.get("privacy", {})
-            text = json.dumps(record, ensure_ascii=False)
+            text = record_text(record)
             safe_files = public_file(root, path)
             if record.get("narrative"):
                 narrative = path.parent / record["narrative"]
@@ -139,7 +155,7 @@ def check_public_records(root: Path) -> dict:
     for entries in collect_repository(root).values():
         for path, record in entries:
             privacy = record.get('privacy', {})
-            text = json.dumps(record, ensure_ascii=False)
+            text = record_text(record)
             safe_files = public_file(root, path)
             if record.get('narrative'):
                 narrative = path.parent / record['narrative']

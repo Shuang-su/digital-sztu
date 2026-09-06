@@ -14,6 +14,35 @@ from digital_sztu.build import build_indexes, export_knowledge
 
 
 class PublicReleaseTests(unittest.TestCase):
+    def test_quoted_assignment_in_record_prose_cannot_hide_behind_json_escaping(self):
+        repo = ExampleRepository()
+        try:
+            event = repo.event()
+            secret = 'fixture-' + 'unusable-password'
+            event['summary'] = json.dumps({'password': secret})
+            write_json(repo.event_path, event)
+            result = check_public_records(repo.root)
+            self.assertFalse(result['ok'])
+            self.assertNotIn(secret, json.dumps(result))
+            projection = public_projection(repo.root, {'event': [(repo.event_path, event)]})
+            self.assertFalse(projection.get('event'))
+        finally:
+            repo.close()
+
+    def test_json_escaped_strings_and_unicode_keys_are_scanned_without_echo(self):
+        secret = 'fixture-' + 'unusable-password'
+        variants = [json.dumps({'text': json.dumps({'password': secret})}),
+                    '{"\\u0070assword": ' + json.dumps(secret) + '}']
+        for suffix in ('.json', '.jsonl'):
+            for text in variants:
+                with self.subTest(suffix=suffix, text=text), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    (root / ('data' + suffix)).write_text(text)
+                    result = scan_privacy(root, strict=True)
+                    self.assertFalse(result['ok'])
+                    self.assertNotIn(secret, json.dumps(result))
+                    self.assertEqual(result['counts']['block'], 1)
+
     def test_standard_private_key_headers_are_blocked(self):
         for prefix in ('', 'RSA ', 'DSA ', 'EC ', 'OPENSSH ', 'ENCRYPTED ', 'PGP '):
             with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as temporary:
