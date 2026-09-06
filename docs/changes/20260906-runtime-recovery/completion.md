@@ -53,3 +53,13 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - 用户再次确认按普查、两轮补漏、正式入库、图谱发布顺序执行。新批 33 条原文复核写入后逐条回读通过：17 条确认或复确认（净新增 5 个确认实体）、7 条有依据的范围排除、9 条仍为候选并保留补证要求。另将简介里的成绩预览工具链接作为独立研究来源保留，记录公开 API 404 访问缺口。
 - 本批复核使用固定提交及 Git blob 字节/哈希验证；缓存中经既有流程脱敏的两份 README 明确不作为原始字节副本。私有复核目录初次 19 个 JSON 文件共 1,102,240 字节逐项扫描，无凭据模式命中；该目录不作为公开档案提交。后续派生关系检查仍在添加材料。
 - 真实工作进程经 SIGINT 返回 130，33 条复核成功保存后 SQLite integrity_check 为 ok；研究已从保存的分页断点恢复。阶段快照为 completed 26,037、pending 61,477、missing 337、unfinished pagination 858、no-new rounds 0，promotion_ready 仍为 false。不得把本工程合并视为普查、正式入库或 Pages 已完成。
+
+## 阶段复核、缺失材料与恢复执行
+
+- 在 33 条原文复核后，补充 1 条访问缺口、4 条代码派生关系复核和 6 条缺失 README 的替代证据复核，累计 44 条写入、40 个不同研究实体；最终意见已从 SQLite 回读，6 个缺失操作均带有 alternative evidence reviewed 解决记录。
+- 核心脚本对照验证原始字节：三个成绩提醒仓库 blob 完全相同，第四个仅 CRLF/LF 不同。保留工作流差异，尚不认定原创者，也不计成四个独立校园项目。
+- README 批次正常返回 processed=200：41 个成功读取、159 个转入缺失材料复核，没有通过自动排除清空候选。随后从已提交状态继续执行完整操作队列。
+- 44 个私有 JSON/JSONL 研究产物共 1,619,126 字节完成原文和解码字符串扫描，无凭据模式命中；另检查阶段 Markdown 报告并加入哈希清单。8 个旧批次输入再次流式哈希验证，全部保持不变。研究产物和账号关系不提交为正式档案。
+- check、public-check、严格扫描成功，20 个派生文件连续构建一致；合并同步后的 206 项单元测试通过（2 项默认跳过），checkpoint 0b0a1f057a5e771fb0b728ed1e42cdfa8596665c 的 Linux/macOS/Windows CI 均成功。无正式内容，不能以此代替真实图谱验收。
+- Issue #2 阶段进展已回写并从服务端比对全文：https://github.com/Shuang-su/digital-sztu/issues/2#issuecomment-5558059856 。PR #6 的三项晚到审查回复也已从服务端核对；修复由已合并 PR #8 交付。
+- 阶段快照：completed 26,244、pending 64,132、missing 495、unfinished pagination 892。普查仍 partial、promotion_ready=false、两轮无新增补漏 0/2；仍未正式入库或发布 Pages。
