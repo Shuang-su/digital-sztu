@@ -15,7 +15,8 @@ from .utils import canonical_json, sha256_bytes, extract_wikilinks
 
 SECRET_QUERY = re.compile(
     r"^(?:access[_-]?token|refresh[_-]?token|token|password|passwd|pwd|secret|api[_-]?key|"
-    r"cookie|signature|credential|authorization|auth|session(?:id)?|jsessionid|ticket|sso[_-]?ticket)$", re.I
+    r"cookie|signature|credential|authorization|auth|session(?:id)?|jsessionid|ticket|sso[_-]?ticket|"
+    r"sig|(?:x-amz|x-goog)-(?:credential|signature|security-token))$", re.I
 )
 
 
