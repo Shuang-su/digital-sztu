@@ -74,6 +74,24 @@ class PublicReleaseTests(unittest.TestCase):
                 self.assertEqual(sorted(row['kind'] for row in result['findings']), ['email', 'student-id-label'])
                 self.assertTrue(all(row['line'] == 1 for row in result['findings']))
 
+    def test_decoding_layers_do_not_create_cross_view_assignments(self):
+        harmless = json.dumps('"password" password:')
+        self.assertFalse(sensitive_text(harmless))
+        for suffix in ('.json', '.jsonl'):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / ('data' + suffix)).write_text(harmless)
+                self.assertTrue(scan_privacy(root, strict=True)['ok'])
+        repo = ExampleRepository()
+        try:
+            event = repo.event()
+            event['summary'] = harmless
+            write_json(repo.event_path, event)
+            self.assertTrue(check_public_records(repo.root)['ok'])
+            self.assertTrue(public_projection(repo.root, {'event': [(repo.event_path, event)]})['event'])
+        finally:
+            repo.close()
+
     def test_standard_private_key_headers_are_blocked(self):
         for prefix in ('', 'RSA ', 'DSA ', 'EC ', 'OPENSSH ', 'ENCRYPTED ', 'PGP '):
             with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as temporary:

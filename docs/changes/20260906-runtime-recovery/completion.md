@@ -82,3 +82,7 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 
 - Full nested-decoding rescan of the seven-file, 207,631,637-byte private export completed. Two per-line credential-pattern findings were reviewed: prior numbered example placeholders and a dynamic Set-Cookie code template. 859 advisory findings remain review context. All eight original input hashes matched. See private research review report and export-nested-scan-disposition.json; raw research is not approved for public publication.
 - Both boundary regression suites passed again (135 main-compatible / 210 upgrade tests; 2 skipped each), alongside check, strict privacy scan and public-check. Census remains partial; no promotion or Pages deployment.
+
+- Independent-view main-compatible regression suite: 136 tests successful, 2 skipped.
+
+- Continued at user request: fixed independent decoding views in upgrade; 211 tests successful (2 skipped), check/strict privacy/public-check successful. PR #9 remains separate engineering delivery; census still partial.

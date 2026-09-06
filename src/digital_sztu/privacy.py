@@ -200,11 +200,11 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
         try:
             with path.open("r", encoding="utf-8") as handle:
                 for number, line in enumerate(handle, 1):
-                    inspected = line
+                    inspected = (line,)
                     if suffix in {".json", ".jsonl"}:
-                        inspected = "\n".join(decoded_json_views(line))
+                        inspected = tuple(decoded_json_views(line))
                     for kind, pattern in CREDENTIAL_PATTERNS.items():
-                        if pattern.search(inspected):
+                        if any(pattern.search(view) for view in inspected):
                             findings.append(
                                 _finding(
                                     "block" if strict else "review",
@@ -215,7 +215,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
                                 )
                             )
                     for kind, pattern in REVIEW_PATTERNS.items():
-                        if pattern.search(inspected):
+                        if any(pattern.search(view) for view in inspected):
                             findings.append(
                                 _finding(
                                     "review",

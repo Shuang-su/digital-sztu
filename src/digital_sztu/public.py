@@ -40,27 +40,19 @@ def public_url(value: str | None) -> bool:
 
 
 def sensitive_text(text: str) -> bool:
-    text = "\n".join(decoded_json_views(text))
-    return any(pattern.search(text) for pattern in CREDENTIAL_PATTERNS.values()) or any(
-        not public_url(value.rstrip(".,;"))
-        for value in re.findall(r'https?://[^\s<>"\)\]]+', text)
-    )
+    for view in decoded_json_views(text):
+        if any(pattern.search(view) for pattern in CREDENTIAL_PATTERNS.values()) or any(
+            not public_url(value.rstrip(".,;"))
+            for value in re.findall(r'https?://[^\s<>"\)\]]+', view)
+        ):
+            return True
+    return False
 
 
 def record_text(record: dict) -> str:
-    def strings(value):
-        if isinstance(value, str):
-            yield value
-        elif isinstance(value, dict):
-            for key, item in value.items():
-                yield key
-                yield from strings(item)
-        elif isinstance(value, list):
-            for item in value:
-                yield from strings(item)
-    # Keep object key/value context and also inspect decoded prose. Serializing
-    # prose alone would hide quoted assignments behind JSON backslash escapes.
-    return json.dumps(record, ensure_ascii=False) + "\n" + "\n".join(strings(record))
+    # Preserve field boundaries; sensitive_text inspects each decoding layer
+    # independently, without joining unrelated fields or representations.
+    return json.dumps(record, ensure_ascii=False)
 
 
 def public_file(root: Path, path: Path, directory: Path | None = None) -> bool:
