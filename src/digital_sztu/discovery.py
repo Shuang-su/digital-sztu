@@ -414,9 +414,10 @@ class Research(ResearchRuntime, ReadmeReads, GraphQLReads, DiscoveryPolicy):
                     aid = self.account(row, parent=rec['id'], via='verified-campus-delta-contributor', anchor=True, priority=18)
                     for proof in item['evidence']:
                         self.edge(aid, 'mapped-campus-delta-author-to', rec['id'], proof)
-                op = self.state['ops'].get(rec['id'] + '|scoped-contributors-review')
-                if op:
-                    op.update(status='complete', completed_at=now())
+                # Persist completion even when metadata has not queued this
+                # operation yet, so a later refresh cannot recreate it pending.
+                key = self.enqueue(rec['id'], 'scoped-contributors-review', 70)
+                self.state['ops'][key].update(status='complete', completed_at=now())
             self.audit('evidence-review', entity_id=rec['id'], before=before, after=rec['verification_status'], reason=item['relevance_reason'])
         self.save()
         return self.status()

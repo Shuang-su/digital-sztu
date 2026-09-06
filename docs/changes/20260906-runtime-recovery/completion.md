@@ -95,3 +95,11 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - 私有复核目录 review-continuation-20260906 的首批 10 个产物完整扫描无阻断模式命中，78 条提醒保留研究上下文。保存完整源码/树哈希及阅读范围，未执行第三方代码。
 - 真实 worker 经 SIGINT 以 130 退出，3 条意见写入后均回读核对，SQLite integrity_check=ok，再从同一数据库恢复完整队列。阶段快照 complete 27,113、pending 72,448、未完成分页 1,518；补漏 0/2，promotion_ready=false。
 - 与 main 同步仅有完成记录的历史段落冲突，保留升级分支的已核验时间线，并记录本次主分支合并结果。没有改动 v0.2 构建行为或提前入库。
+
+## 增量复核顺序修复
+
+- 真实队列暴露先复核、后 metadata 刷新会新建同一 scoped-contributors-review 待办；现显式贡献者复核即创建或更新完成状态。隔离测试覆盖关闭重开及重复 metadata 刷新，且仍不创建上游 contributors 任务。
+- 212 项单元测试成功（2 项跳过）；check、strict privacy-scan、public-check 成功。
+- 仅重放已有 NLP fork 的原复核证据，数据库回读 scoped review=complete，integrity_check=ok；worker 从同一数据库恢复。此次 4 条复核写入涉及 3 个实体。
+- 私有继续复核报告与哈希清单已保存于 .work/discovery/review-continuation-20260906/；17 个产物，共 7358051 字节，完整扫描无阻断模式命中；八份旧批次哈希保持不变。
+- 观察快照：complete 27164，pending 72789，未完成分页 1557，补漏 0/2。普查未完成，不提前正式入库、合并完整 v0.2 或发布 Pages。

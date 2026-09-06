@@ -138,6 +138,30 @@ class RuntimeTests(unittest.TestCase):
             self.run.resume(1, ['nonexistent-kind'])
             self.assertEqual(self.run.db.execute('SELECT count(*) FROM audit').fetchone()[0], before)
 
+    def test_scoped_review_before_metadata_survives_refresh_and_reopen(self):
+        owner = {'id': 7, 'login': 'owner7', 'html_url': 'https://github.com/owner7', 'type': 'User'}
+        row = {'id': 91, 'full_name': 'owner7/fork', 'html_url': 'https://github.com/owner7/fork',
+               'private': False, 'fork': True, 'owner': owner, 'default_branch': 'main'}
+        sid = self.run.repo(row)
+        key = sid + '|scoped-contributors-review'
+        self.assertNotIn(key, self.run.state['ops'])
+        self.run.review([{'id': sid, 'verification_status': 'confirmed', 'category': 'coursework',
+                          'relevance_reason': 'Course exercise delta verified in source cells',
+                          'evidence': [{'url': 'https://github.com/owner7/fork/commit/abc',
+                                        'locator': 'course exercise diff', 'accessed_at': '2026-09-06T00:00:00Z'}],
+                          'contributor_scope_reason': 'Only mapped exercise author',
+                          'campus_contributors': [{'id': 8, 'login': 'author8',
+                                                   'html_url': 'https://github.com/author8'}]}])
+        completed = copy.deepcopy(self.run.state['ops'][key])
+        self.assertEqual(completed['status'], 'complete')
+        self.run.close(); self.run = Research(self.path)
+        self.run.repo(row)
+        self.run.repo(row)
+        self.run.save()
+        self.assertEqual(self.run.state['ops'][key], completed)
+        self.assertNotIn(sid + '|contributors', self.run.state['ops'])
+        self.assertIn('github-account:8', self.run.state['records'])
+
     def test_readonly_status_keeps_a_consistent_snapshot_during_writer_commit(self):
         reader = Research(self.path, readonly=True)
         try:
