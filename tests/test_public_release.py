@@ -4,14 +4,36 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from test_repository import ExampleRepository, write_json
-from digital_sztu.public import check_public_records, public_url, sensitive_text
+from digital_sztu.public import check_public_records, public_url, sensitive_text, public_projection
 from digital_sztu.privacy import scan_privacy
 from digital_sztu.runtime import environment_diagnostics
 
 
 class PublicReleaseTests(unittest.TestCase):
+    def test_hidden_wikilink_matches_exact_id_in_prose_and_collection_narrative(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            rows = {'node': [], 'event': [], 'collection': []}
+            for kind, record in (
+                ('node', {'id': 'topic-a', 'privacy': {'indexing': 'exclude'}}),
+                ('node', {'id': 'topic-a-long'}),
+                ('event', {'id': 'event-visible', 'summary': '[[topic-a-long|Visible]]'}),
+                ('event', {'id': 'event-hidden', 'summary': '[[topic-a|Hidden]]'}),
+                ('collection', {'id': 'collection-visible', 'narrative': 'index.md'}),
+            ):
+                path = root / (record['id'] + '.json')
+                write_json(path, record)
+                rows[kind].append((path, record))
+            (root/'index.md').write_text('[[topic-a-long]]')
+            projected = public_projection(root, rows)
+            self.assertEqual([record['id'] for _,record in projected['event']], ['event-visible'])
+            self.assertEqual(projected['collection'][0][1]['narrative'], 'index.md')
+            (root/'index.md').write_text('[[topic-a]]')
+            self.assertIsNone(public_projection(root, rows)['collection'][0][1]['narrative'])
+
     def test_plaintext_key_and_config_extensions_are_scanned(self):
         for suffix in ('.pem', '.key', '.ini', '.conf', '.custom'):
             with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temporary:
@@ -72,7 +94,8 @@ class PublicReleaseTests(unittest.TestCase):
             root = Path(temporary)
             (root/'.git').write_text('gitdir: /missing/old-checkout')
             (root/'.venv').mkdir()
-            result = environment_diagnostics(root)
+            with patch('digital_sztu.runtime.storage_status', return_value={'ok': True}):
+                result = environment_diagnostics(root)
             self.assertFalse(result['ok'])
             self.assertEqual(len(result['errors']), 2)
 
