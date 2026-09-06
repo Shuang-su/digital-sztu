@@ -103,3 +103,11 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - 仅重放已有 NLP fork 的原复核证据，数据库回读 scoped review=complete，integrity_check=ok；worker 从同一数据库恢复。此次 4 条复核写入涉及 3 个实体。
 - 私有继续复核报告与哈希清单已保存于 .work/discovery/review-continuation-20260906/；17 个产物，共 7358051 字节，完整扫描无阻断模式命中；八份旧批次哈希保持不变。
 - 观察快照：complete 27164，pending 72789，未完成分页 1557，补漏 0/2。普查未完成，不提前正式入库、合并完整 v0.2 或发布 Pages。
+
+## 继续执行：接口恢复与重复来源核查
+
+- 用户继续指令后读取真实状态：原 worker 因 graphql-unavailable 在 processed=2623 后停止。公开只读 GraphQL 查询成功后，执行 README 批次，正常退出 processed=200、blocked=null；状态净增 complete 64、missing 111，不把执行计数描述为 200 个成功读取或独立项目。
+- 四条复核意见已写入并从 SQLite 回读：校园课程论文 LaTeX 模板 confirmed；完整树仅两行自动生成 README 的占位仓库 excluded；两个实习 RAG 仓库保留 confirmed，但固定提交及全部 25 文件一致，均标记不作独立项目计数，保留两个稳定来源 ID。
+- SQLite integrity_check=ok，完整队列已从同一数据库恢复；旧八份批次哈希保持不变。私有研究区 review-next-20260906 保存原文定位、报告和 16 文件清单（80542 字节），完整扫描无阻断模式命中。
+- 状态快照 complete 28011、pending 80292、未完成分页 1934；补漏 0/2，promotion_ready=false。正式入库与 Pages 仍等待完成条件。
+- 本阶段只改复核状态及完成记录，没有修改生产代码；保留既有 212 项测试与跨平台 CI 验证结果，不将此前测试冒称本次重新运行。
