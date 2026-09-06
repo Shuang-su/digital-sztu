@@ -43,6 +43,37 @@ class PublicReleaseTests(unittest.TestCase):
                     self.assertNotIn(secret, json.dumps(result))
                     self.assertEqual(result['counts']['block'], 1)
 
+    def test_nested_json_credentials_are_blocked_in_records_and_streams(self):
+        secret = 'fixture-' + 'unusable-password'
+        for depth in (2, 4):
+            nested = json.dumps({'password': secret})
+            for _ in range(depth):
+                nested = json.dumps(nested)
+            repo = ExampleRepository()
+            try:
+                event = repo.event()
+                event['summary'] = nested
+                write_json(repo.event_path, event)
+                self.assertFalse(check_public_records(repo.root)['ok'])
+                self.assertFalse(public_projection(repo.root, {'event': [(repo.event_path, event)]}).get('event'))
+                result = scan_privacy(repo.root, strict=True)
+                self.assertFalse(result['ok'])
+                self.assertNotIn(secret, json.dumps(result))
+            finally:
+                repo.close()
+
+    def test_decoded_advisory_matches_are_deduplicated_and_do_not_block(self):
+        for suffix in ('.json', '.jsonl'):
+            with tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                payload = json.dumps({'text': 'alice@example.com; 学号: ABC123456'})
+                payload = payload.replace('@', r'\u0040')
+                (root / ('data' + suffix)).write_text(payload)
+                result = scan_privacy(root, strict=True)
+                self.assertTrue(result['ok'])
+                self.assertEqual(sorted(row['kind'] for row in result['findings']), ['email', 'student-id-label'])
+                self.assertTrue(all(row['line'] == 1 for row in result['findings']))
+
     def test_standard_private_key_headers_are_blocked(self):
         for prefix in ('', 'RSA ', 'DSA ', 'EC ', 'OPENSSH ', 'ENCRYPTED ', 'PGP '):
             with self.subTest(prefix=prefix), tempfile.TemporaryDirectory() as temporary:
