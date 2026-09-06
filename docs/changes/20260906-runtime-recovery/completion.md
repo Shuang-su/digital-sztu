@@ -63,3 +63,9 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - check、public-check、严格扫描成功，20 个派生文件连续构建一致；合并同步后的 206 项单元测试通过（2 项默认跳过），checkpoint 0b0a1f057a5e771fb0b728ed1e42cdfa8596665c 的 Linux/macOS/Windows CI 均成功。无正式内容，不能以此代替真实图谱验收。
 - Issue #2 阶段进展已回写并从服务端比对全文：https://github.com/Shuang-su/digital-sztu/issues/2#issuecomment-5558059856 。PR #6 的三项晚到审查回复也已从服务端核对；修复由已合并 PR #8 交付。
 - 阶段快照：completed 26,244、pending 64,132、missing 495、unfinished pagination 892。普查仍 partial、promotion_ready=false、两轮无新增补漏 0/2；仍未正式入库或发布 Pages。
+
+## JSON 转义扫描与研究快照核验
+
+- 最新私有研究快照 7 个文件，共 207,631,637 字节，已完整流式扫描，JSONL 字段另行解码检查。sources.jsonl 在既有上游 README 的配置示例中发现 2 处编号式密码占位命中，逐项核验为示例，未观察到可用真实凭据；原研究资料保持不变，不将其描述为零模式命中或作为正式摘录。
+- 该核验暴露仅扫描序列化 JSON 会漏掉字符串内带引号的赋值。正式记录公开检查现同时检查解码字段；JSON/JSONL 隐私扫描逐行解码字符串 token，覆盖嵌套示例和 Unicode 转义字段名，不因大文件加载上限跳过。报告不回显值，并合并原文/解码视图同一行同类型的重复提示。
+- 新增真实漏检形式的回归验证：带引号的赋值在公开投影中被排除、public-check 阻断，JSON 与 JSONL 的嵌套转义及 Unicode 字段名由严格扫描阻断。208 项单元测试通过（2 项默认跳过）。本修复作为独立工程更新，不提前入库或发布档案图谱。

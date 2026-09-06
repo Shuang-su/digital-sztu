@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import os
+import json
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -143,6 +144,17 @@ def _looks_like_text(path: Path) -> bool:
         return False
 
 
+def _decoded_json_line(line: str) -> str:
+    # JSON strings cannot contain literal newlines. Decode complete string tokens
+    # on each physical line without loading a potentially large export in memory.
+    def decode(match: re.Match[str]) -> str:
+        try:
+            return json.loads(match.group())
+        except ValueError:
+            return match.group()
+    return re.sub(r'"(?:[^"\\]|\\.)*"', decode, line)
+
+
 def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     scanned = 0
@@ -177,8 +189,11 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
         try:
             with path.open("r", encoding="utf-8") as handle:
                 for number, line in enumerate(handle, 1):
+                    inspected = line
+                    if suffix in {".json", ".jsonl"}:
+                        inspected += "\n" + _decoded_json_line(line)
                     for kind, pattern in CREDENTIAL_PATTERNS.items():
-                        for match in pattern.finditer(line):
+                        if pattern.search(inspected):
                             findings.append(
                                 _finding(
                                     "block" if strict else "review",
