@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -34,11 +35,14 @@ TEXT_EXTENSIONS = {
     ".svg",
     ".css",
     ".js",
+    ".pem", ".key", ".crt", ".cer", ".asc",
+    ".ini", ".cfg", ".conf", ".properties", ".sql",
+    ".sh", ".bash", ".zsh", ".fish", ".log",
 }
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
 
-# Detected for review tips only; never escalate to block.
+# Local review is advisory; strict publication checks block credential patterns.
 CREDENTIAL_PATTERNS = {
     "private-key": re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "github-token": re.compile(r"(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}"),
@@ -76,20 +80,23 @@ REVIEW_PATTERNS = {
 
 
 def _candidate_paths(root: Path) -> Iterable[Path]:
-    for path in sorted(root.rglob("*")):
-        try:
-            relative = path.relative_to(root)
-        except ValueError:
-            continue
-        if any(part in EXCLUDED_DIRECTORIES or part.endswith(".egg-info") for part in relative.parts):
-            continue
-        if path.name == ".DS_Store":
-            continue
-        if path.is_symlink():
-            yield path
-            continue
-        if path.is_file():
-            yield path
+    # Prune local environments, private research and caches before traversing.
+    candidates = []
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        parent = Path(directory)
+        retained = []
+        for name in dirs:
+            if name in EXCLUDED_DIRECTORIES or name.endswith('.egg-info'):
+                continue
+            path = parent / name
+            if path.is_symlink():
+                candidates.append(path)
+            else:
+                retained.append(name)
+        dirs[:] = retained
+        candidates.extend(parent / name for name in files if name != '.DS_Store'
+                          and name not in EXCLUDED_DIRECTORIES and not name.endswith('.egg-info'))
+    yield from sorted(candidates)
 
 
 def _finding(
@@ -124,19 +131,33 @@ def _is_env_named_file(path: Path) -> bool:
     return name == ".env" or name.startswith(".env.") or name.startswith(".envrc")
 
 
+def _looks_like_text(path: Path) -> bool:
+    # Unknown extensions, including LICENSE variants, can still hold plain text.
+    try:
+        with path.open('rb') as stream:
+            sample = stream.read(4096)
+        import codecs
+        codecs.getincrementaldecoder('utf-8')().decode(sample, final=False)
+        return b'\0' not in sample
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
 def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     scanned = 0
     for path in _candidate_paths(root):
         rel = path.relative_to(root).as_posix()
         if path.is_symlink():
-            # Symlinks are allowed; skip content scan without blocking.
+            findings.append(_finding("block" if strict else "review", "symlink-not-scanned", rel,
+                                     message="链接目标未扫描；公开交付应使用经过核查的仓库内实体文件。"))
             continue
         suffix = path.suffix.lower()
         if (
             suffix not in TEXT_EXTENSIONS
             and not _is_env_template(path)
             and not _is_env_named_file(path)
+            and not _looks_like_text(path)
         ):
             findings.append(
                 _finding(
@@ -160,7 +181,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
                         for match in pattern.finditer(line):
                             findings.append(
                                 _finding(
-                                    "review",
+                                    "block" if strict else "review",
                                     kind,
                                     rel,
                                     line=number,
@@ -192,7 +213,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
         severity: sum(item["severity"] == severity for item in findings)
         for severity in ("block", "review", "notice")
     }
-    # Default and --strict: only block fails the check; review stays advisory.
+    # Ordinary public names and contact context remain advisory in strict mode.
     ok = counts["block"] == 0
     return {
         "ok": ok,

@@ -23,6 +23,7 @@ jobs:
       - name: Verify preserved source archives offline
         run: python importers/verify_archives.py
       - run: digital-sztu public-check --json
+      - run: digital-sztu privacy-scan --strict --json
       - run: digital-sztu check --json
       - run: python -m unittest discover -s tests
       - run: digital-sztu build --json

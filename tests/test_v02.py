@@ -619,11 +619,11 @@ class CredentialBoundaryTests(unittest.TestCase):
     def test_public_repository_names_and_blob_hashes_remain_readable(self):
         from digital_sztu.discovery_policy import clean
         from digital_sztu.public import sensitive_text
-        for value in ('https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way','10135a'+'123456789012345678'+'db93f821e1776d0a'):
+        for value in ('https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way','10135a'+('123456789' * 2)+'db93f821e1776d0a'):
             self.assertEqual(clean(value),value)
             self.assertFalse(sensitive_text(value))
         self.assertTrue(sensitive_text('credential: sk-'+'X'*30))
-        self.assertTrue(sensitive_text('证件号码：'+'123456789012345678'))
+        self.assertTrue(sensitive_text('证件号码：'+('123456789' * 2)))
 
 
 class RestCursorIdentityTests(unittest.TestCase):

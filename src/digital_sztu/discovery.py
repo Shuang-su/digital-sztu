@@ -14,6 +14,8 @@ from .discovery_policy import DiscoveryPolicy, SCOPED_CATEGORIES, now, digest, c
 from .discovery_graphql import GraphQLReads, LIST_KINDS, OWNER_AFFILIATIONS
 from .discovery_readmes import ReadmeReads
 from .utils import atomic_write_text, sha256_file
+from .discovery_runtime import ResearchRuntime, install_indexes
+from .runtime import require_storage
 
 TABLES = ('records', 'edges', 'ops')
 MANUAL = ('relevance-review', 'scoped-contributors-review', 'external-review')
@@ -60,18 +62,30 @@ class Rows(MutableMapping):
         self.original.clear()
 
 
-class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
-    def __init__(self, path: Path):
-        self.path = path
+class Research(ResearchRuntime, ReadmeReads, GraphQLReads, DiscoveryPolicy):
+    def __init__(self, path: Path, *, readonly=False):
+        self.path = path.resolve()
         if path.is_symlink() or not path.is_file():
             raise ValueError('Initialize a real SQLite research file first')
-        self.db = sqlite3.connect(path, timeout=5)
-        self.db.execute('PRAGMA journal_mode=WAL')
-        self.db.execute('PRAGMA synchronous=FULL')
-        self.state = json.loads(self.db.execute('SELECT body FROM meta WHERE id=1').fetchone()[0])
-        self.run_id = self.state['run_id']
-        for table in TABLES:
-            self.state[table] = Rows(self.db, table)
+        if not readonly:
+            require_storage(path.parent)
+        self.db = sqlite3.connect(path.resolve().as_uri() + '?mode=ro', uri=True, timeout=5) if readonly else sqlite3.connect(path, timeout=5)
+        try:
+            # Per-connection setting avoids sorting JSON bodies on the system volume.
+            self.db.execute('PRAGMA temp_store=MEMORY')
+            if not readonly:
+                self.db.execute('PRAGMA journal_mode=WAL')
+                self.db.execute('PRAGMA synchronous=FULL')
+                install_indexes(self.db)
+            else:
+                self.db.execute('BEGIN')  # One consistent snapshot across status queries.
+            self.state = json.loads(self.db.execute('SELECT body FROM meta WHERE id=1').fetchone()[0])
+            self.run_id = self.state['run_id']
+            for table in TABLES:
+                self.state[table] = Rows(self.db, table)
+        except BaseException:
+            self.db.close()
+            raise
 
     def close(self):
         self.db.close()
@@ -86,6 +100,7 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
         meta = {k: v for k, v in self.state.items() if k not in TABLES}
         self.db.execute('UPDATE meta SET body=? WHERE id=1', (json.dumps(meta, ensure_ascii=False),))
         self.db.commit()
+        self.report_progress()
 
     def counts(self, table, field):
         return dict(self.db.execute(f"SELECT json_extract(body, '$.{field}'), count(*) FROM {table} GROUP BY 1"))
@@ -144,8 +159,14 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
             self.state[table].release()
         return len(keys), None
 
-    def resume(self, limit=100, kinds=None):
-        handled = set()
+    def _resume(self, limit=100, kinds=None):
+        if not self.state.get('unresolved_review_queue_policy'):
+            keys = [row[0] for row in self.db.execute("SELECT o.id FROM ops o JOIN records r ON json_extract(o.body,'$.entity_id')=r.id WHERE json_extract(o.body,'$.operation') IN ('relevance-review','external-review') AND json_extract(o.body,'$.status')='complete' AND json_extract(r.body,'$.verification_status')='candidate'")]
+            for key in keys:
+                self.state['ops'][key].update(status='scoped-review-required', reason='candidate scope remains unresolved after review')
+            self.state['unresolved_review_queue_policy'] = True
+            self.audit('review-queue-policy-upgraded', reopened_operations=keys)
+            self.save()
         if not self.state.get('all_affiliations_count_policy'):
             # Earlier profile optimization used an owned-only count for an all list.
             self.db.execute("UPDATE ops SET body=json_set(body,'$.status','pending','$.reason','verify all public affiliations') WHERE json_extract(body,'$.operation')='repos' AND json_extract(body,'$.completion_evidence')='stable-identity-profile-count-zero'")
@@ -172,16 +193,8 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
         self.db.commit()
         processed = 0
         while processed < limit:
-            candidates = self.db.execute("SELECT id FROM ops WHERE json_extract(body,'$.status')='pending' ORDER BY json_extract(body,'$.priority'),json_extract(body,'$.queued_at'),id")
-            selected = None
-            for (key,) in candidates:
-                if key in handled:
-                    continue
-                operation = key.rsplit('|', 1)[-1]
-                if operation in MANUAL or (kinds and operation not in kinds):
-                    continue
-                selected = key
-                break
+            require_storage(self.path.parent)
+            selected = self.next_operation(kinds)
             if selected is None:
                 break
             if selected.endswith('|profile'):
@@ -216,16 +229,17 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
                 self.execute(op)
                 self.save()
             except Exception as exc:
-                self.db.rollback()
-                for table in TABLES:
-                    self.state[table].release()
+                if getattr(exc, 'sqlite_errorcode', None) == sqlite3.SQLITE_FULL or isinstance(exc, OSError) and exc.errno == 28:
+                    raise
+                self.restore_committed()
                 op = self.state['ops'][selected]
                 op.update(status='deferred', error=type(exc).__name__ + ': ' + clean(str(exc)))
                 self.audit('processing-error', operation_id=selected, error=op['error'])
                 self.save()
                 return {**self.status(), 'processed': processed, 'blocked': op['error']}
             processed += 1
-            handled.add(selected)
+            self.db.execute('INSERT OR IGNORE INTO handled_operations VALUES (?)', (selected,))
+            self.db.commit()
             blocked = op.get('error') in ('rate-limit', 'rate-deferred', 'verification-reserve')
             for table in TABLES:
                 self.state[table].release()
@@ -378,7 +392,10 @@ class Research(ReadmeReads, GraphQLReads, DiscoveryPolicy):
             for kind in ('relevance-review', 'external-review'):
                 op = self.state['ops'].get(rec['id'] + '|' + kind)
                 if op:
-                    op.update(status='complete', completed_at=now())
+                    if rec['verification_status'] == 'candidate':
+                        op.update(status='scoped-review-required', reason=rec['relevance_reason'])
+                    else:
+                        op.update(status='complete', completed_at=now())
             if rec['record_type'] == 'repository' and rec['verification_status'] == 'confirmed':
                 # Metadata refresh applies fork and campus-delta contributor policy.
                 key = self.enqueue(rec['id'], 'metadata', 8)
@@ -478,7 +495,9 @@ def initialize(path: Path, legacy: Path | None = None):
     temporary = path.with_suffix('.initializing')
     if temporary.exists() or temporary.is_symlink():
         raise ValueError('Unfinished initialization exists; inspect it before retrying')
+    require_storage(path.parent)
     connection = sqlite3.connect(temporary)
+    connection.execute('PRAGMA temp_store=MEMORY')
     try:
         for table in TABLES:
             connection.execute(f'CREATE TABLE {table}(id TEXT PRIMARY KEY,body TEXT NOT NULL CHECK(json_valid(body)))')

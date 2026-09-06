@@ -18,6 +18,7 @@ from .ingest import create_manifest
 from .privacy import scan_privacy
 from .utils import atomic_write_text, ensure_within, find_repo_root
 from .validation import validate_repository
+from .runtime import environment_diagnostics
 
 
 def emit(operation: str, result: dict[str, Any], as_json: bool) -> None:
@@ -55,8 +56,10 @@ def doctor(root: Path) -> dict[str, Any]:
     ]
     missing = [item for item in required if not (root / item).exists()]
     py_ok = sys.version_info >= (3, 11)
+    diagnostics = environment_diagnostics(root)
     return {
-        "ok": py_ok and not missing,
+        "ok": py_ok and not missing and diagnostics["ok"],
+        "diagnostics": diagnostics,
         "python": platform.python_version(),
         "repository": str(root),
         "missing": missing,
@@ -145,6 +148,7 @@ def build_parser() -> argparse.ArgumentParser:
     discover.add_argument("--complete", action="store_true")
     discover.add_argument("--limit", type=int, default=100)
     discover.add_argument("--kinds")
+    discover.add_argument("--progress", action="store_true", help="Emit committed progress as JSONL on stderr")
     discover.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
@@ -178,18 +182,19 @@ def main(argv: list[str] | None = None) -> int:
                 result = initialize(database, args.legacy_state)
             else:
                 with (nullcontext() if args.action in ("status", "inspect") else research_lock(database)):
-                    run = Research(database)
+                    run = Research(database, readonly=args.action in ("status", "inspect"))
                     try:
                         if args.action == "resume":
                             if args.limit < 1:
                                 raise ValueError("limit must be positive")
-                            result = run.resume(args.limit, args.kinds.split(",") if args.kinds else None)
+                            result = run.resume(args.limit, args.kinds.split(",") if args.kinds else None,
+                                progress=(lambda frame: print(json.dumps(frame, ensure_ascii=False), file=sys.stderr, flush=True)) if args.progress else None)
                         elif args.action == "status":
                             result = run.status()
                         elif args.action == "inspect":
                             if not args.id:
                                 raise ValueError("inspect requires --id")
-                            result = {"ok": True, "record": run.state["records"][args.id]}
+                            result = run.review_packet(args.id)
                         elif args.action == "sweep":
                             queries = json.loads(args.file.read_text(encoding="utf-8")) if args.file else None
                             result = run.sweep(queries, args.complete)
@@ -250,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise RuntimeError(f"Unknown command: {operation}")
         emit(operation, result, getattr(args, "as_json", False))
-        return 0 if result.get("ok") else 1
+        return 130 if result.get("interrupted") else (0 if result.get("ok") else 1)
     except Exception as exc:  # noqa: BLE001
         result = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         emit(operation, result, getattr(args, "as_json", False))

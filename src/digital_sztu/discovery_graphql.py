@@ -65,7 +65,7 @@ class GraphQLReads:
         self.state['api_calls'] += 1
         try:
             process = subprocess.run(['gh', 'api', 'graphql', '--input', '-', '--include'],
-                                     input=json.dumps({'query': query}), capture_output=True, text=True, timeout=45)
+                                     input=json.dumps({'query': query}), capture_output=True, text=True, timeout=45, env=self.subprocess_environment())
             raw, headers, status = process.stdout.replace('\r\n', '\n'), {}, None
             while raw.startswith('HTTP/') and '\n\n' in raw:
                 head, raw = raw.split('\n\n', 1)

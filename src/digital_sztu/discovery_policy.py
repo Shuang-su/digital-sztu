@@ -185,7 +185,7 @@ class DiscoveryPolicy:
             return (None, {}, 'verification-reserve')
         for attempt in (1, 2):
             try:
-                p = subprocess.run(['gh', 'api', '--method', 'GET', '--include', endpoint], capture_output=True, text=True, timeout=30)
+                p = subprocess.run(['gh', 'api', '--method', 'GET', '--include', endpoint], capture_output=True, text=True, timeout=30, env=self.subprocess_environment())
             except subprocess.TimeoutExpired:
                 self.audit('request_error', endpoint=endpoint, error='timeout', attempt=attempt)
                 if attempt == 1:

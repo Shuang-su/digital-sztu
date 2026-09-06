@@ -11,7 +11,7 @@ from urllib.parse import parse_qsl, urlsplit
 import ipaddress
 
 from .privacy import CREDENTIAL_PATTERNS
-from .utils import canonical_json, sha256_bytes
+from .utils import canonical_json, sha256_bytes, extract_wikilinks
 
 SECRET_QUERY = re.compile(
     r"^(?:access[_-]?token|refresh[_-]?token|token|password|passwd|pwd|secret|api[_-]?key|"
@@ -31,8 +31,9 @@ def public_url(value: str | None) -> bool:
                 return False
         except ValueError:
             pass
+        parameter_parts = (p.query, p.fragment, p.fragment.partition('?')[2])
         return bool(p.scheme in {"http", "https"} and p.hostname and not p.username and not p.password
-                    and not any(SECRET_QUERY.match(k) for k, _ in parse_qsl(p.query)))
+                    and not any(SECRET_QUERY.match(k) for part in parameter_parts for k, _ in parse_qsl(part)))
     except ValueError:
         return False
 
@@ -95,7 +96,7 @@ def public_projection(root: Path, records: dict) -> dict:
                 dependencies.update(link["source_ids"])
             # Collection membership is navigation; keep public members only.
             text = prose[rid] if kind != "collection" else record.get("summary", "")
-            hidden_reference = any(f"[[{item}" in text for item in rejected)
+            hidden_reference = bool(set(extract_wikilinks(text)) & rejected)
             if dependencies & rejected or hidden_reference:
                 rejected.add(rid)
                 accepted.pop(rid)
@@ -109,7 +110,7 @@ def public_projection(root: Path, records: dict) -> dict:
                 if key in record:
                     record[key] = [item for item in record[key] if item in public_ids]
             # Narrative links must not expose excluded targets, including labels.
-            if record.get("narrative") and any(f"[[{item}" in prose[rid] for item in rejected):
+            if record.get("narrative") and set(extract_wikilinks(prose[rid])) & rejected:
                 record["narrative"] = None
         result[kind].append((path, record))
     return result
