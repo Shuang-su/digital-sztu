@@ -35,6 +35,9 @@ TEXT_EXTENSIONS = {
     ".svg",
     ".css",
     ".js",
+    ".pem", ".key", ".crt", ".cer", ".asc",
+    ".ini", ".cfg", ".conf", ".properties", ".sql",
+    ".sh", ".bash", ".zsh", ".fish", ".log",
 }
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
@@ -128,6 +131,18 @@ def _is_env_named_file(path: Path) -> bool:
     return name == ".env" or name.startswith(".env.") or name.startswith(".envrc")
 
 
+def _looks_like_text(path: Path) -> bool:
+    # Unknown extensions, including LICENSE variants, can still hold plain text.
+    try:
+        with path.open('rb') as stream:
+            sample = stream.read(4096)
+        import codecs
+        codecs.getincrementaldecoder('utf-8')().decode(sample, final=False)
+        return b'\0' not in sample
+    except (OSError, UnicodeDecodeError):
+        return False
+
+
 def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
     findings: list[dict[str, Any]] = []
     scanned = 0
@@ -142,6 +157,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
             suffix not in TEXT_EXTENSIONS
             and not _is_env_template(path)
             and not _is_env_named_file(path)
+            and not _looks_like_text(path)
         ):
             findings.append(
                 _finding(

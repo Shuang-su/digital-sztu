@@ -6,12 +6,36 @@ import unittest
 from pathlib import Path
 
 from test_repository import ExampleRepository, write_json
-from digital_sztu.public import check_public_records
+from digital_sztu.public import check_public_records, public_url, sensitive_text
 from digital_sztu.privacy import scan_privacy
 from digital_sztu.runtime import environment_diagnostics
 
 
 class PublicReleaseTests(unittest.TestCase):
+    def test_plaintext_key_and_config_extensions_are_scanned(self):
+        for suffix in ('.pem', '.key', '.ini', '.conf', '.custom'):
+            with self.subTest(suffix=suffix), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                (root / ('account' + suffix)).write_text('-----BEGIN ' + 'PRIVATE KEY-----\nfixture\n')
+                self.assertFalse(scan_privacy(root, strict=True)['ok'])
+
+    def test_fragment_credentials_block_while_section_anchors_remain_valid(self):
+        for fragment in ('ticket=shortsecret', 'access_token=short', '/callback?auth=short', '%74oken=short'):
+            address = 'https://example.org/callback#' + fragment
+            self.assertFalse(public_url(address))
+            self.assertTrue(sensitive_text(address))
+        self.assertTrue(public_url('https://example.org/article#section-2'))
+
+    def test_fragment_credential_in_canonical_record_is_not_publishable(self):
+        repo = ExampleRepository()
+        try:
+            event = repo.event()
+            event['summary'] = 'Source: https://example.org/callback#ticket=' + 'shortsecret'
+            write_json(repo.event_path, event)
+            self.assertFalse(check_public_records(repo.root)['ok'])
+        finally:
+            repo.close()
+
     def test_strict_blocks_credential_without_echoing_it(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

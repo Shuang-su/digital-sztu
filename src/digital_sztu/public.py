@@ -31,8 +31,9 @@ def public_url(value: str | None) -> bool:
                 return False
         except ValueError:
             pass
+        parameter_parts = (p.query, p.fragment, p.fragment.partition('?')[2])
         return bool(p.scheme in {"http", "https"} and p.hostname and not p.username and not p.password
-                    and not any(SECRET_QUERY.match(k) for k, _ in parse_qsl(p.query)))
+                    and not any(SECRET_QUERY.match(k) for part in parameter_parts for k, _ in parse_qsl(part)))
     except ValueError:
         return False
 
