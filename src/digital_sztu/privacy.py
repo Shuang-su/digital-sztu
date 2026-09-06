@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import os
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -31,23 +32,25 @@ TEXT_EXTENSIONS = {
     ".yaml",
     ".yml",
     ".cff",
+    ".svg",
+    ".css",
+    ".js",
 }
 
 ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
-MAX_TEXT_BYTES = 8 * 1024 * 1024
 
-# Detected for review tips only; never escalate to block.
+# Local review is advisory; strict publication checks block credential patterns.
 CREDENTIAL_PATTERNS = {
     "private-key": re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "github-token": re.compile(r"(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}"),
     "gitlab-token": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
-    "openai-key": re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    "openai-key": re.compile(r"(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}"),
     "aws-access-key": re.compile(r"(?:AKIA|ASIA)[A-Z0-9]{16}"),
     "google-api-key": re.compile(r"AIza[A-Za-z0-9_-]{30,}"),
     "slack-token": re.compile(r"xox[baprs]-[A-Za-z0-9-]{20,}"),
     "bearer-token": re.compile(r"Bearer\s+[A-Za-z0-9._~+/=-]{20,}", re.I),
     "jwt": re.compile(r"eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
-    "cn-id-number": re.compile(r"(?<!\d)\d{17}[0-9Xx](?!\d)"),
+    "cn-id-number": re.compile(r"(?<![A-Za-z0-9])\d{17}[0-9Xx](?![A-Za-z0-9])"),
     "password-assignment": re.compile(
         r"['\"]?(?:password|passwd|cookie|session[_-]?token)['\"]?"
         r"\s*[:=]\s*['\"]?[A-Za-z0-9._~+/=-]{8,}",
@@ -74,20 +77,23 @@ REVIEW_PATTERNS = {
 
 
 def _candidate_paths(root: Path) -> Iterable[Path]:
-    for path in sorted(root.rglob("*")):
-        try:
-            relative = path.relative_to(root)
-        except ValueError:
-            continue
-        if any(part in EXCLUDED_DIRECTORIES or part.endswith(".egg-info") for part in relative.parts):
-            continue
-        if path.name == ".DS_Store":
-            continue
-        if path.is_symlink():
-            yield path
-            continue
-        if path.is_file():
-            yield path
+    # Prune local environments, private research and caches before traversing.
+    candidates = []
+    for directory, dirs, files in os.walk(root, followlinks=False):
+        parent = Path(directory)
+        retained = []
+        for name in dirs:
+            if name in EXCLUDED_DIRECTORIES or name.endswith('.egg-info'):
+                continue
+            path = parent / name
+            if path.is_symlink():
+                candidates.append(path)
+            else:
+                retained.append(name)
+        dirs[:] = retained
+        candidates.extend(parent / name for name in files if name != '.DS_Store'
+                          and name not in EXCLUDED_DIRECTORIES and not name.endswith('.egg-info'))
+    yield from sorted(candidates)
 
 
 def _finding(
@@ -128,7 +134,8 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
     for path in _candidate_paths(root):
         rel = path.relative_to(root).as_posix()
         if path.is_symlink():
-            # Symlinks are allowed; skip content scan without blocking.
+            findings.append(_finding("block" if strict else "review", "symlink-not-scanned", rel,
+                                     message="链接目标未扫描；公开交付应使用经过核查的仓库内实体文件。"))
             continue
         suffix = path.suffix.lower()
         if (
@@ -149,16 +156,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
             size = path.stat().st_size
         except OSError:
             continue
-        if size > MAX_TEXT_BYTES:
-            findings.append(
-                _finding(
-                    "review",
-                    "large-text-not-scanned",
-                    rel,
-                    message="文本超过扫描上限；需要单独检查。",
-                )
-            )
-            continue
+        # Iterate lines even for large exports; file size must not hide a tail secret.
         scanned += 1
         try:
             with path.open("r", encoding="utf-8") as handle:
@@ -167,11 +165,11 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
                         for match in pattern.finditer(line):
                             findings.append(
                                 _finding(
-                                    "review",
+                                    "block" if strict else "review",
                                     kind,
                                     rel,
                                     line=number,
-                                    message="检测到凭据或高风险直接标识；按规则可原样保留并记录。",
+                                    message="检测到凭据或高风险直接标识；需要核查并移除真实秘密，不能随公开交付发布。",
                                 )
                             )
                     for kind, pattern in REVIEW_PATTERNS.items():
@@ -199,7 +197,7 @@ def scan_privacy(root: Path, *, strict: bool = False) -> dict[str, Any]:
         severity: sum(item["severity"] == severity for item in findings)
         for severity in ("block", "review", "notice")
     }
-    # Default and --strict: only block fails the check; review stays advisory.
+    # Ordinary public names and contact context remain advisory in strict mode.
     ok = counts["block"] == 0
     return {
         "ok": ok,
