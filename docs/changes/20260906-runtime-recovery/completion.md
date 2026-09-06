@@ -86,3 +86,12 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - Independent-view main-compatible regression suite: 136 tests successful, 2 skipped.
 
 - Continued at user request: fixed independent decoding views in upgrade; 211 tests successful (2 skipped), check/strict privacy/public-check successful. PR #9 remains separate engineering delivery; census still partial.
+
+## 2026-09-06 继续执行：工程合并与三项复核
+
+- PR #9 已正常合并，服务端 merge SHA d3720068c0131fc9ed3fdf5c5621be2e7d2ec56a；合并前最新提交 7a7040c 的 Linux/macOS/Windows 与 Bugbot 检查全部成功。主目录已快进至同一 SHA。
+- 修复解码视图拼接误报；各层独立匹配、正式记录保留字段边界。136 主分支兼容 / 211 升级测试成功（各跳过 2 项）。
+- 继续复核并写入 3 项：确认就业网 RAG 实习工具的校园用途；确认 NLP fork 的课程作业增量，仅映射有公开提交证据的账号；Jetson master 分支补读后仍缺学校/课程依据，保留 candidate。
+- 私有复核目录 review-continuation-20260906 的首批 10 个产物完整扫描无阻断模式命中，78 条提醒保留研究上下文。保存完整源码/树哈希及阅读范围，未执行第三方代码。
+- 真实 worker 经 SIGINT 以 130 退出，3 条意见写入后均回读核对，SQLite integrity_check=ok，再从同一数据库恢复完整队列。阶段快照 complete 27,113、pending 72,448、未完成分页 1,518；补漏 0/2，promotion_ready=false。
+- 与 main 同步仅有完成记录的历史段落冲突，保留升级分支的已核验时间线，并记录本次主分支合并结果。没有改动 v0.2 构建行为或提前入库。
