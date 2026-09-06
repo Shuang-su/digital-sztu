@@ -10,7 +10,7 @@ from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 import ipaddress
 
-from .privacy import CREDENTIAL_PATTERNS
+from .privacy import CREDENTIAL_PATTERNS, decoded_json_views
 from .utils import canonical_json, sha256_bytes, extract_wikilinks
 
 SECRET_QUERY = re.compile(
@@ -40,6 +40,7 @@ def public_url(value: str | None) -> bool:
 
 
 def sensitive_text(text: str) -> bool:
+    text = "\n".join(decoded_json_views(text))
     return any(pattern.search(text) for pattern in CREDENTIAL_PATTERNS.values()) or any(
         not public_url(value.rstrip(".,;"))
         for value in re.findall(r'https?://[^\s<>"\)\]]+', text)

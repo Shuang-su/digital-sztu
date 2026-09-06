@@ -39,3 +39,9 @@
 - 最新私有研究快照 7 个文件，共 207,631,637 字节，已完整流式扫描，JSONL 字段另行解码检查。sources.jsonl 在既有上游 README 的配置示例中发现 2 处编号式密码占位命中，逐项核验为示例，未观察到可用真实凭据；原研究资料保持不变，不将其描述为零模式命中或作为正式摘录。
 - 该核验暴露仅扫描序列化 JSON 会漏掉字符串内带引号的赋值。正式记录公开检查现同时检查解码字段；JSON/JSONL 隐私扫描逐行解码字符串 token，覆盖嵌套示例和 Unicode 转义字段名，不因大文件加载上限跳过。报告不回显值，并合并原文/解码视图同一行同类型的重复提示。
 - 新增真实漏检形式的回归验证：带引号的赋值在公开投影中被排除、public-check 阻断，JSON 与 JSONL 的嵌套转义及 Unicode 字段名由严格扫描阻断。133 项单元测试通过（2 项默认跳过）。本修复作为独立工程更新，不提前入库或发布档案图谱。
+
+### PR #9 review follow-up
+
+- Fixed nested JSON string inspection with eight bounded decoding passes; original and intermediate views remain available to credential and advisory matching.
+- Unicode-escaped advisory information now shares decoded scanning and per-line deduplication; advisory findings remain nonblocking.
+- Main-compatible suite: 135 tests passed (2 skipped). Nested canonical record exclusion and JSON stream blocking were exercised with synthetic values; outputs do not echo them.
