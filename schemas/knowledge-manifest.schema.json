@@ -15,13 +15,38 @@
     "embedding"
   ],
   "properties": {
-    "schema_version": {"const": "0.1.0"},
-    "format": {"const": "sztu-connect-knowledge-jsonl@0.1"},
-    "chunking_profile": {"const": "structured-fields-v1"},
-    "chunks_path": {"const": "chunks.jsonl"},
-    "chunk_count": {"type": "integer", "minimum": 0},
-    "chunks_sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
-    "dataset_revision": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
-    "embedding": {"type": "null"}
+    "schema_version": {
+      "enum": [
+        "0.1.0",
+        "0.2.0"
+      ]
+    },
+    "format": {
+      "enum": [
+        "sztu-connect-knowledge-jsonl@0.1",
+        "digital-sztu-knowledge-jsonl@0.2"
+      ]
+    },
+    "chunking_profile": {
+      "const": "structured-fields-v1"
+    },
+    "chunks_path": {
+      "const": "chunks.jsonl"
+    },
+    "chunk_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "chunks_sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "dataset_revision": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "embedding": {
+      "type": "null"
+    }
   }
 }

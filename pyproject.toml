@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "digital-sztu"
-version = "0.1.1"
+version = "0.2.0"
 description = "Event-centered, source-linked archive tooling for Digital SZTU"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,3 +25,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+digital_sztu = ["assets/*.html", "assets/*.css", "assets/*.js"]

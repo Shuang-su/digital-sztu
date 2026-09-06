@@ -31,3 +31,7 @@ event-a --involves--> person-x
 ```
 
 构建后，person-x、org-y、place-z、institution-q、topic-k 都有指回 event-a 的 incoming backlink。添加事件时无需逐目录编辑。
+
+## 知识档案
+
+v0.2 集合可通过 `knowledge_ids` 组织项目资料与课程资源，并与 `event_ids` 共存。只有 Event 参加事件时间排序；未知有效期的知识档案不被虚构为某年的历史事件。集合与分类均是阅读组织，不能据此推导作者、归属或因果。

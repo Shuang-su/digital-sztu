@@ -3,8 +3,8 @@
   "chunking_profile": "structured-fields-v1",
   "chunks_path": "chunks.jsonl",
   "chunks_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "dataset_revision": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "dataset_revision": "sha256:37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
   "embedding": null,
-  "format": "sztu-connect-knowledge-jsonl@0.1",
-  "schema_version": "0.1.0"
+  "format": "digital-sztu-knowledge-jsonl@0.2",
+  "schema_version": "0.2.0"
 }

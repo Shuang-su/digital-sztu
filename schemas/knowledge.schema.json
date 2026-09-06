@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:digital-sztu:schema:knowledge:0.2.0",
+  "title": "Digital SZTU knowledge record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "type",
+    "title",
+    "status",
+    "summary",
+    "claims",
+    "links",
+    "privacy",
+    "provenance",
+    "narrative",
+    "category",
+    "validity",
+    "external_ids"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.2.0"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^knowledge-[a-z0-9][a-z0-9-]*$",
+      "maxLength": 240
+    },
+    "type": {
+      "const": "knowledge"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "aliases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+      },
+      "uniqueItems": true,
+      "default": []
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "source-backed",
+        "corroborated",
+        "contested",
+        "withdrawn"
+      ]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/claim"
+      }
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/link"
+      },
+      "default": []
+    },
+    "privacy": {
+      "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/privacy"
+    },
+    "provenance": {
+      "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/provenance"
+    },
+    "narrative": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[^/\\\\]+\\.md$"
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "maxLength": 100
+    },
+    "external_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "validity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "state",
+        "verified_at"
+      ],
+      "properties": {
+        "start": {
+          "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/partialDate"
+        },
+        "end": {
+          "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/partialDate"
+        },
+        "state": {
+          "enum": [
+            "current",
+            "superseded",
+            "unknown"
+          ]
+        },
+        "verified_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        }
+      }
+    },
+    "superseded_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^knowledge-[a-z0-9][a-z0-9-]*$"
+    },
+    "research_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "entity_id"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

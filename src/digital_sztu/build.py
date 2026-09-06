@@ -4,9 +4,10 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+from .graph import write_archive_views
 from .knowledge import write_knowledge_export
 from .privacy import scan_privacy
-from .public import public_projection
+from .public import public_projection, dataset_revision
 from .utils import extract_wikilinks, load_json, write_json
 from .validation import collect_repository, validate_repository
 
@@ -28,9 +29,14 @@ def _generated_output(root: Path) -> Path | None:
         output,
         output / "directories",
         output / "knowledge",
+        output / "catalog",
+        output / "catalog" / "records",
+        output / "catalog" / "categories",
     ):
         if directory.is_symlink():
             return None
+    if output.exists() and any(p.is_symlink() for p in output.rglob("*")):
+        return None
     return output
 
 
@@ -93,7 +99,7 @@ def build_relationships(
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, list[dict[str, Any]]]]]:
     edges: list[dict[str, Any]] = []
 
-    for path, event in records["event"]:
+    for path, event in records["event"] + records["knowledge"]:
         for claim in event["claims"]:
             for citation in claim["citations"]:
                 edges.append(
@@ -116,6 +122,8 @@ def build_relationships(
                     source_ids=link["source_ids"],
                 )
             )
+        if event.get("superseded_by"):
+            edges.append(_make_edge(event["id"], event["superseded_by"], "superseded-by"))
         edges.extend(_narrative_edges(root, event["id"], path, event.get("narrative")))
 
     for _, node in records["node"]:
@@ -130,7 +138,7 @@ def build_relationships(
             )
 
     for path, collection in records["collection"]:
-        for event_id in collection["event_ids"]:
+        for event_id in collection["event_ids"] + collection.get("knowledge_ids", []):
             edges.append(_make_edge(collection["id"], event_id, "contains"))
         for focus_id in collection["focus_ids"]:
             edges.append(_make_edge(collection["id"], focus_id, "focuses"))
@@ -141,12 +149,13 @@ def build_relationships(
     unique_edges = sorted({_edge_key(edge): edge for edge in edges}.values(), key=_edge_key)
     all_ids = sorted(
         record["id"]
-        for kind in ("event", "node", "collection", "source")
+        for kind in ("event", "knowledge", "node", "collection", "source")
         for _, record in records[kind]
     )
     backlinks: dict[str, dict[str, list[dict[str, Any]]]] = {
         item: {"outgoing": [], "incoming": []} for item in all_ids
     }
+    unique_edges = [edge for edge in unique_edges if edge["from"] in backlinks and edge["to"] in backlinks]
     for edge in unique_edges:
         backlinks[edge["from"]]["outgoing"].append(edge)
         backlinks[edge["to"]]["incoming"].append(edge)
@@ -160,13 +169,17 @@ def _build_directories(
     output: Path,
     records: dict[str, list[tuple[Path, dict[str, Any]]]],
     edges: list[dict[str, Any]],
+    revision: str,
 ) -> dict[str, int]:
     node_by_id = {node["id"]: node for _, node in records["node"]}
     events_by_node: dict[str, set[str]] = defaultdict(set)
+    knowledge_by_node: dict[str, set[str]] = defaultdict(set)
     collections_by_node: dict[str, set[str]] = defaultdict(set)
     for edge in edges:
         if edge["from"].startswith("event-") and edge["to"] in node_by_id:
             events_by_node[edge["to"]].add(edge["from"])
+        if edge["from"].startswith("knowledge-") and edge["to"] in node_by_id:
+            knowledge_by_node[edge["to"]].add(edge["from"])
         if edge["from"].startswith("collection-") and edge["to"] in node_by_id:
             collections_by_node[edge["to"]].add(edge["from"])
 
@@ -183,13 +196,14 @@ def _build_directories(
                     "aliases": node["aliases"],
                     "status": node["status"],
                     "event_ids": sorted(events_by_node[node["id"]]),
+                    "knowledge_ids": sorted(knowledge_by_node[node["id"]]),
                     "collection_ids": sorted(collections_by_node[node["id"]]),
                 }
             )
         items.sort(key=lambda item: item["id"])
         write_json(
             output / "directories" / filename,
-            {"schema_version": "0.1.0", "kind": kind, "items": items},
+            {"schema_version": "0.2.0", "dataset_revision": revision, "kind": kind, "items": items},
             sort_keys=True,
         )
         counts[kind] = len(items)
@@ -202,7 +216,7 @@ def _build_directories(
     normalized_years = {key: sorted(value) for key, value in sorted(by_year.items())}
     write_json(
         output / "directories" / "by-year.json",
-        {"schema_version": "0.1.0", "years": normalized_years},
+        {"schema_version": "0.2.0", "dataset_revision": revision, "years": normalized_years},
         sort_keys=True,
     )
     counts["years"] = len(normalized_years)
@@ -218,6 +232,7 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
         return {"ok": False, "errors": ["privacy scan blocked the build"], "privacy": privacy}
 
     records = public_projection(root, collect_repository(root))
+    revision = dataset_revision(root, records)
     edges, backlinks = build_relationships(root, records)
     output = _generated_output(root)
     if output is None:
@@ -229,7 +244,7 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
     events = [event for _, event in records["event"]]
     events.sort(key=_event_sort_key)
     timeline = {
-        "schema_version": "0.1.0",
+        "schema_version": "0.2.0", "dataset_revision": revision,
         "events": [
             {
                 "id": event["id"],
@@ -246,6 +261,8 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
     graph_nodes: list[dict[str, Any]] = []
     for _, event in records["event"]:
         graph_nodes.append({"id": event["id"], "type": "event", "label": event["title"]})
+    for _, record in records["knowledge"]:
+        graph_nodes.append({"id": record["id"], "type": "knowledge", "kind": record["category"], "label": record["title"]})
     for _, node in records["node"]:
         graph_nodes.append({"id": node["id"], "type": "node", "kind": node["kind"], "label": node["name"]})
     for _, collection in records["collection"]:
@@ -274,6 +291,7 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
                 "title": collection["title"],
                 "focus_ids": collection["focus_ids"],
                 "event_ids": event_ids,
+                "knowledge_ids": collection.get("knowledge_ids", []),
             }
         )
     collection_items.sort(key=lambda item: item["id"])
@@ -281,20 +299,21 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
     write_json(output / "timeline.json", timeline, sort_keys=True)
     write_json(
         output / "graph.json",
-        {"schema_version": "0.1.0", "nodes": graph_nodes, "edges": edges},
+        {"schema_version": "0.2.0", "dataset_revision": dataset_revision(root, records), "nodes": graph_nodes, "edges": edges},
         sort_keys=True,
     )
     write_json(
         output / "backlinks.json",
-        {"schema_version": "0.1.0", "items": backlinks},
+        {"schema_version": "0.2.0", "dataset_revision": revision, "items": backlinks},
         sort_keys=True,
     )
     write_json(
         output / "collections.json",
-        {"schema_version": "0.1.0", "items": collection_items},
+        {"schema_version": "0.2.0", "dataset_revision": revision, "items": collection_items},
         sort_keys=True,
     )
-    directory_counts = _build_directories(output, records, edges)
+    views = write_archive_views(root, output, records, load_json(output / "graph.json"), backlinks)
+    directory_counts = _build_directories(output, records, edges, revision)
     knowledge = write_knowledge_export(root, output / "knowledge", records, backlinks)
     if not knowledge["ok"]:
         return {"ok": False, "errors": knowledge["errors"], "knowledge": knowledge}
@@ -302,6 +321,8 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
     return {
         "ok": True,
         "events": len(records["event"]),
+        "knowledge_records": len(records["knowledge"]),
+        "views": views,
         "nodes": len(records["node"]),
         "collections": len(records["collection"]),
         "sources": len(records["source"]),

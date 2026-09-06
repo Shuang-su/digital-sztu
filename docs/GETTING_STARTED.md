@@ -225,8 +225,10 @@ print(report)
 - **GitHub**：本地模式下为不需要；用户要求连接时再报告授权和权限分支，不展示账号秘密；
 - **继续使用**：重新打开同一工作副本后如何继续，邀请用户选择哪件事，以及该记录尚缺的材料。
 
-没有完成安装窗口、工具只下载了安装包、仅在隔离系统中成功、或只确认了文档格式，都不能写成“本机全部部署成功”。当前版本没有网站、RAG 检索 / 问答、MCP / WebMCP 服务或自动发布能力。
+没有完成安装窗口、工具只下载了安装包、仅在隔离系统中成功、或只确认了文档格式，都不能写成“本机全部部署成功”。当前版本提供静态档案图谱及 Pages 构建；这不代表当前仓库已经完成线上发布。RAG 检索 / 问答与 MCP / WebMCP 服务仍未实现。
 
-## 从旧名称升级
+## v0.2 兼容与档案阅读
 
 新安装使用 `digital-sztu` 包、`digital_sztu` 模块与 `setup-digital-sztu` Skill。旧的 `sztu-connect` 命令、`python -m sztu_connect` 和 `setup-sztu-connect` Skill 均转到同一实现。保留原工作副本和虚拟环境，在当前源码根目录运行该环境的 `python -m pip install -e .`，即可安装新版入口；不需要重命名已有文件夹。已有记录 ID、Schema URN 与 v0.1 知识导出格式保持兼容。
+
+运行 `digital-sztu graph --open` 可浏览本地交互档案；`data/generated/catalog/README.md` 可直接通过 GitHub、编辑器或 Obsidian 阅读。普通浏览不依赖 Node.js。链式来源研究另见 [来源普查](DISCOVERY.md)，研究候选不自动进入正式图谱。

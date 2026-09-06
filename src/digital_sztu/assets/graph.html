@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="@@CSP@@"><meta name="color-scheme" content="light"><title>档案图谱 · Digital SZTU</title><style>@@CSS@@</style></head>
+<body>
+<main id="app">
+  <canvas id="graph" aria-label="档案关系图，使用搜索或档案列表选择节点" tabindex="0"></canvas>
+  <header class="identity"><div class="mark" aria-hidden="true">D.</div><div><h1>Digital SZTU</h1><p>深圳技术大学 · 数字档案图谱</p></div></header>
+  <section class="searchbox" aria-label="搜索档案"><label class="sr" for="search">搜索标题、摘要或档案 ID</label><div class="searchline"><span aria-hidden="true">⌕</span><input id="search" type="search" autocomplete="off" placeholder="搜索档案、人物、组织…"><button id="list-toggle" aria-label="打开可读档案列表" title="档案列表">☷</button></div><div id="results" hidden aria-label="搜索结果"></div></section>
+  <div class="top-actions"><button id="filter-toggle" aria-expanded="false" aria-controls="filters">筛选</button><button id="help-toggle" aria-expanded="false" aria-controls="help">?</button></div>
+  <section id="filters" class="popover" hidden aria-label="图谱筛选"><h2>显示档案</h2><div id="type-filters"></div><hr><label><input type="checkbox" id="sources">展开来源节点</label><label><input type="checkbox" id="navigation" checked>显示导航关系</label></section>
+  <section id="help" class="popover help" hidden><h2>从一条档案开始</h2><p>搜索或点击节点，阅读正文和来源。拖动画布移动视角，滚轮或双指缩放；拖动节点整理位置。</p><p>选择“聚焦所选”查看一层关联，再用“展开一层”继续探索。按 Esc 收起面板；键盘 + / − 缩放，0 重置。</p><p>实线为有证据的档案关系，虚线为集合、分类或文本导航。节点距离不表示事实关联。</p><p id="revision"></p></section>
+  <div id="empty" hidden><h2>这里将连接校园的故事</h2><p>目前没有符合筛选条件的公开档案。</p><button id="clear-filters">清除筛选</button></div>
+  <aside id="detail" hidden aria-label="档案详情"><div class="detail-top"><span id="detail-type"></span><button id="close-detail" aria-label="收起详情">×</button></div><div id="detail-body"></div><div class="detail-actions"><button id="focus-detail">聚焦此档案</button><button id="expand">展开一层</button></div></aside>
+  <footer><div class="legend"><span class="dot knowledge"></span>知识档案 <span class="dot event"></span>事件 <span class="dot node"></span>目录 <span class="dot collection"></span>集合</div><p id="status" role="status" aria-live="polite"></p><nav class="controls" aria-label="图谱视图"><button id="all" class="active">全部档案</button><button id="focus" disabled>聚焦所选</button><span class="divider"></span><button id="zoom-out" aria-label="缩小">−</button><button id="zoom-in" aria-label="放大">+</button><button id="reset">重置</button></nav></footer>
+</main><script type="application/json" id="archive-data">@@DATA@@</script><script>@@JS@@</script>
+</body></html>

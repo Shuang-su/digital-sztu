@@ -1,8 +1,8 @@
 # 数据模型
 
-## Event 是核心
+## 事件与持续性知识
 
-用户提交的是一个 Event。Agent 从来源中整理时间、论断和关系，查找或创建相关目录 Node，再由构建器生成所有反向链接和目录索引。事件正文不会复制到人物、组织、地点或专题目录。
+发生在某个时间的事使用 Event；项目资料、课程资源与持续性校园信息使用 Knowledge Record。Agent 从来源中整理时间或有效期、论断和关系，查找或创建相关目录 Node，再由构建器生成反向链接和目录索引。正文不会复制到目录节点。
 
 ```text
 Source ──> Claim ──> Event ──> Node / Event
@@ -139,3 +139,26 @@ Collection 用 `event_ids` 和 `focus_ids` 组织多种史体，不复制事件�
 ## Source
 
 Source 记录标题、类型、locator、日期、哈希、公开方式、权利与独立性。来源可以是 `metadata-only`；权利未知不阻止记录来源存在，但不能据此复制原件。
+
+## v0.2：Knowledge Record
+
+项目资料、课程资源和持续性校园信息使用 `content/knowledge/<knowledge-id>/record.json`。它与 Event 共用 Claim、Citation、Link、privacy 和 provenance；不为了满足事件时间而把“读取日期”或“GitHub 创建日期”当作事件发生日期。
+
+必填 `type: knowledge`、`schema_version: 0.2.0`、稳定 `knowledge-*` ID、`category` 和 `external_ids`。其余标题、摘要、论断、正文与 Event 一致。`external_ids` 用来源稳定身份防止重复导入，例如 `github-repo:123`，不是会变化的登录名。
+
+```json
+{
+  "validity": {
+    "start": null,
+    "end": null,
+    "state": "unknown",
+    "verified_at": null
+  },
+  "external_ids": ["github-repo:123"],
+  "research_origin": {"run_id": "batch-id", "entity_id": "github-repo:123"}
+}
+```
+
+有效期 `start`／`end` 允许年、月、日精度或 `null`，不得补全未知的月日。`verified_at` 是核验时间，允许为空。`state` 为 `current`、`superseded` 或 `unknown`；可通过 `superseded_by` 指向另一条知识档案，但不改写旧记录或静默丢弃反证。
+
+Event 和 Knowledge Record 可彼此引用，也可引用 Node；正向关系仍只写一次。Collection 允许 `event_ids` 与 `knowledge_ids`，合计至少一条记录。所有关系生成对应反向链接。v0.1 Event／Node／Source／Collection 继续可读；历史 ID 和第三方存档不会因为包名迁移改变。

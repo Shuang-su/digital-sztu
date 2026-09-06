@@ -1,7 +1,7 @@
 {
   "name": "digital-sztu",
-  "version": "0.1.1",
-  "description": "Event-centered, source-linked local archive workflows for Digital SZTU.",
+  "version": "0.2.0",
+  "description": "Source-linked campus events, knowledge records and archive graph workflows for Digital SZTU.",
   "author": {
     "name": "Digital SZTU contributors",
     "url": "https://github.com/Shuang-su"
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Digital SZTU",
-    "shortDescription": "以事件和来源组织可核查记录",
-    "longDescription": "Digital SZTU以事件和来源组织可核查的校园记录，由 Agent 关联人物、组织、地点、制度、主题与相关事件，并生成类似 Notion／Obsidian 的反向链接；支持多种史体与供应商无关的知识 JSONL。",
+    "shortDescription": "保存校园档案，连接记录与来源",
+    "longDescription": "Digital SZTU，一个深圳技术大学的数字档案计划。通过 Agent 工作流整理事件、项目资料与课程资源，保留来源、时效与反证，并生成交互图谱、Markdown 阅读目录和知识 JSONL。",
     "developerName": "Digital SZTU contributors",
     "category": "Productivity",
     "capabilities": [
