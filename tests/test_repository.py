@@ -732,6 +732,7 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn(event["id"], chunks)
             self.assertNotIn('"risk":"prohibited"', chunks)
             self.assertNotIn('"indexing":"exclude"', chunks)
+            self.assertEqual(load_json(repo.event_path), event)
         finally:
             repo.close()
 
