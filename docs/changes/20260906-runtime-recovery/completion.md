@@ -47,3 +47,11 @@
 - Main-compatible suite: 135 tests passed (2 skipped). Nested canonical record exclusion and JSON stream blocking were exercised with synthetic values; outputs do not echo them.
 
 - Boundary review: reserve an additional decoding pass for the enclosing JSON field; regression now exercises exactly eight nested wrappers as well as depths two and four.
+
+### Continuation: independent decoding views
+
+- Latest user request: 继续。 Survey and two no-new rounds still precede archive promotion and Pages.
+- Addressed review 3943509907: credential and advisory patterns now match each decoding view independently. Public record inspection preserves serialized field boundaries, avoiding cross-view or cross-field synthetic matches.
+- Added harmless scalar and canonical-record regression; nested credential and Unicode advisory coverage remains.
+
+- Independent-view main-compatible regression suite: 136 tests successful, 2 skipped.
