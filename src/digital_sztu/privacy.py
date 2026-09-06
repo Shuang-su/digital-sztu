@@ -44,7 +44,7 @@ ENV_TEMPLATE_SUFFIXES = (".example", ".sample", ".template")
 
 # Local review is advisory; strict publication checks block credential patterns.
 CREDENTIAL_PATTERNS = {
-    "private-key": re.compile("-----BEGIN " + r"(?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    "private-key": re.compile("-----BEGIN " + r"(?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----"),
     "github-token": re.compile(r"(?:ghp_|github_pat_)[A-Za-z0-9_]{20,}"),
     "gitlab-token": re.compile(r"glpat-[A-Za-z0-9_-]{20,}"),
     "openai-key": re.compile(r"(?<![A-Za-z0-9_-])sk-[A-Za-z0-9_-]{20,}"),
