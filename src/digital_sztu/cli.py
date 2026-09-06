@@ -13,6 +13,8 @@ from .ingest import create_manifest
 from .privacy import scan_privacy
 from .utils import atomic_write_text, ensure_within, find_repo_root
 from .validation import validate_repository
+from .runtime import environment_diagnostics
+from .public import check_public_records
 
 
 def emit(operation: str, result: dict[str, Any], as_json: bool) -> None:
@@ -50,8 +52,10 @@ def doctor(root: Path) -> dict[str, Any]:
     ]
     missing = [item for item in required if not (root / item).exists()]
     py_ok = sys.version_info >= (3, 11)
+    diagnostics = environment_diagnostics(root)
     return {
-        "ok": py_ok and not missing,
+        "ok": py_ok and not missing and diagnostics["ok"],
+        "diagnostics": diagnostics,
         "python": platform.python_version(),
         "repository": str(root),
         "missing": missing,
@@ -94,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", type=Path, help="repository root; defaults to auto-discovery")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    for command in ("doctor", "validate", "build"):
+    for command in ("doctor", "validate", "build", "public-check"):
         item = sub.add_parser(command)
         item.add_argument("--json", action="store_true", dest="as_json")
 
@@ -135,6 +139,8 @@ def main(argv: list[str] | None = None) -> int:
         root = args.root.resolve() if args.root else find_repo_root()
         if operation == "doctor":
             result = doctor(root)
+        elif operation == "public-check":
+            result = check_public_records(root)
         elif operation == "validate":
             result = validate_repository(root)
         elif operation == "privacy-scan":
