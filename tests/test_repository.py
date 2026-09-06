@@ -719,7 +719,7 @@ class RepositoryTests(unittest.TestCase):
         finally:
             repo.close()
 
-    def test_prohibited_records_are_exported(self) -> None:
+    def test_prohibited_records_are_not_exported(self) -> None:
         repo = ExampleRepository()
         try:
             event = repo.event()
@@ -729,9 +729,10 @@ class RepositoryTests(unittest.TestCase):
             export = export_knowledge(repo.root, repo.root / ".work/knowledge")
             self.assertTrue(export["ok"], export)
             chunks = (repo.root / ".work/knowledge/chunks.jsonl").read_text(encoding="utf-8")
-            self.assertIn(event["id"], chunks)
-            self.assertIn('"risk":"prohibited"', chunks)
-            self.assertIn('"indexing":"exclude"', chunks)
+            self.assertNotIn(event["id"], chunks)
+            self.assertNotIn('"risk":"prohibited"', chunks)
+            self.assertNotIn('"indexing":"exclude"', chunks)
+            self.assertEqual(load_json(repo.event_path), event)
         finally:
             repo.close()
 

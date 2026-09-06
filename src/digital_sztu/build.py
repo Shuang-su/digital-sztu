@@ -6,6 +6,7 @@ from typing import Any
 
 from .knowledge import write_knowledge_export
 from .privacy import scan_privacy
+from .public import public_projection
 from .utils import extract_wikilinks, load_json, write_json
 from .validation import collect_repository, validate_repository
 
@@ -216,7 +217,7 @@ def build_indexes(root: Path, *, privacy_result: dict[str, Any] | None = None) -
     if not privacy["ok"]:
         return {"ok": False, "errors": ["privacy scan blocked the build"], "privacy": privacy}
 
-    records = collect_repository(root)
+    records = public_projection(root, collect_repository(root))
     edges, backlinks = build_relationships(root, records)
     output = _generated_output(root)
     if output is None:
@@ -318,6 +319,6 @@ def export_knowledge(root: Path, output: Path) -> dict[str, Any]:
     privacy = scan_privacy(root)
     if not privacy["ok"]:
         return {"ok": False, "errors": ["privacy scan blocked the export"], "privacy": privacy}
-    records = collect_repository(root)
+    records = public_projection(root, collect_repository(root))
     _, backlinks = build_relationships(root, records)
     return write_knowledge_export(root, output, records, backlinks)
