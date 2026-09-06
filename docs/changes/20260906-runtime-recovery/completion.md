@@ -118,3 +118,5 @@ PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀
 - 隔离复现发现 readme_batch 的提前返回跳过 Rows.release：三个私有仓库批次各 8 条，缓存逐批为 8/16/24 条。属于跨批次缓存保留，可持续到其他清理路径或进程退出。
 - 改为 finally 清理，覆盖正常、提前返回与异常路径；回归验证连续三批缓存和原文副本均清空，24 条已提交受限状态保留，数据库重开后状态及原分页断点不变。
 - 213 项测试成功（2 项跳过），check、strict privacy-scan、public-check 成功。没有声称已经完成长时压力验证。SQLite 临时内存及整段 HTTP 响应仍可能产生峰值，当前未加入 RSS 硬上限。
+
+- 实际 worker 已 SIGINT 正常返回 130，最终 JSON 确认 interrupted；只读 integrity_check=ok。随后使用修复代码从相同数据库续跑，未重置或丢弃待办。
