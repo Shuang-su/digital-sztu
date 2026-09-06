@@ -45,3 +45,5 @@
 - Fixed nested JSON string inspection with eight bounded decoding passes; original and intermediate views remain available to credential and advisory matching.
 - Unicode-escaped advisory information now shares decoded scanning and per-line deduplication; advisory findings remain nonblocking.
 - Main-compatible suite: 135 tests passed (2 skipped). Nested canonical record exclusion and JSON stream blocking were exercised with synthetic values; outputs do not echo them.
+
+- Boundary review: reserve an additional decoding pass for the enclosing JSON field; regression now exercises exactly eight nested wrappers as well as depths two and four.

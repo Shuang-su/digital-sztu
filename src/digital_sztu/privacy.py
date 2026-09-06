@@ -145,7 +145,7 @@ def _looks_like_text(path: Path) -> bool:
 
 
 def decoded_json_views(text: str) -> Iterable[str]:
-    """Inspect original text and up to eight layers of JSON string escaping.
+    """Inspect eight nested string layers plus their containing JSON field.
 
     Decode complete string tokens, preserving surrounding assignment context.
     Each pass shrinks or stabilizes the text; the bound limits work for deeply
@@ -158,7 +158,7 @@ def decoded_json_views(text: str) -> Iterable[str]:
             return match.group()
 
     yield text
-    for _ in range(8):
+    for _ in range(9):
         decoded = re.sub(r'"(?:[^"\\]|\\.)*"', decode, text)
         if decoded == text:
             return
