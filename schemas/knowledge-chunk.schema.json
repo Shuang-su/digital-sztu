@@ -27,34 +27,93 @@
     "provenance"
   ],
   "properties": {
-    "schema_version": {"const": "0.1.0"},
+    "schema_version": {
+      "enum": [
+        "0.1.0",
+        "0.2.0"
+      ]
+    },
     "chunk_id": {
       "type": "string",
-      "pattern": "^urn:sztu-connect:chunk:[a-z0-9][a-z0-9:-]*$"
+      "pattern": "^urn:(sztu-connect|digital-sztu):chunk:[a-z0-9][a-z0-9:-]*$"
     },
-    "revision_id": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "revision_id": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
     "owner_id": {
       "type": "string",
-      "pattern": "^(event|person|org|place|institution|topic|collection|source)-[a-z0-9][a-z0-9-]*$"
+      "pattern": "^(event|knowledge|person|org|place|institution|topic|collection|source)-[a-z0-9][a-z0-9-]*$"
     },
-    "owner_type": {"enum": ["event", "node", "collection", "source"]},
-    "chunk_kind": {"enum": ["summary", "claim", "node-metadata", "source-metadata"]},
+    "owner_type": {
+      "enum": [
+        "event",
+        "node",
+        "collection",
+        "source",
+        "knowledge"
+      ]
+    },
+    "chunk_kind": {
+      "enum": [
+        "summary",
+        "claim",
+        "node-metadata",
+        "source-metadata"
+      ]
+    },
     "evidence_role": {
-      "enum": ["claim-evidence", "navigation", "directory-metadata", "source-metadata"]
+      "enum": [
+        "claim-evidence",
+        "navigation",
+        "directory-metadata",
+        "source-metadata"
+      ]
     },
-    "locator": {"type": "string", "minLength": 1, "maxLength": 300},
-    "title": {"type": "string", "minLength": 1, "maxLength": 400},
-    "text": {"type": "string", "minLength": 1, "maxLength": 20000},
-    "language": {"type": "string", "minLength": 2, "maxLength": 35},
-    "time": {"type": ["object", "null"]},
+    "locator": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 20000
+    },
+    "language": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 35
+    },
+    "time": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
     "history_forms": {
       "type": "array",
-      "items": {"enum": ["annals", "biographical", "institutional", "thematic"]},
+      "items": {
+        "enum": [
+          "annals",
+          "biographical",
+          "institutional",
+          "thematic"
+        ]
+      },
       "uniqueItems": true
     },
     "claim_ids": {
       "type": "array",
-      "items": {"type": "string", "pattern": "^claim-[a-z0-9][a-z0-9-]*$"},
+      "items": {
+        "type": "string",
+        "pattern": "^claim-[a-z0-9][a-z0-9-]*$"
+      },
       "uniqueItems": true
     },
     "citations": {
@@ -62,12 +121,36 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["source_id", "role"],
+        "required": [
+          "source_id",
+          "role"
+        ],
         "properties": {
-          "source_id": {"type": "string", "pattern": "^source-[a-z0-9][a-z0-9-]*$"},
-          "role": {"enum": ["supports", "contradicts", "context"]},
-          "locator": {"type": ["string", "null"], "maxLength": 500},
-          "note": {"type": ["string", "null"], "maxLength": 1000}
+          "source_id": {
+            "type": "string",
+            "pattern": "^source-[a-z0-9][a-z0-9-]*$"
+          },
+          "role": {
+            "enum": [
+              "supports",
+              "contradicts",
+              "context"
+            ]
+          },
+          "locator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
         }
       }
     },
@@ -76,44 +159,100 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["direction", "relation", "other_id", "claim_ids", "source_ids", "locator"],
+        "required": [
+          "direction",
+          "relation",
+          "other_id",
+          "claim_ids",
+          "source_ids",
+          "locator"
+        ],
         "properties": {
-          "direction": {"enum": ["outgoing", "incoming"]},
-          "relation": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$"},
+          "direction": {
+            "enum": [
+              "outgoing",
+              "incoming"
+            ]
+          },
+          "relation": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$"
+          },
           "other_id": {
             "type": "string",
-            "pattern": "^(event|person|org|place|institution|topic|collection|source)-[a-z0-9][a-z0-9-]*$"
+            "pattern": "^(event|knowledge|person|org|place|institution|topic|collection|source)-[a-z0-9][a-z0-9-]*$"
           },
           "claim_ids": {
             "type": "array",
-            "items": {"type": "string", "pattern": "^claim-[a-z0-9][a-z0-9-]*$"},
+            "items": {
+              "type": "string",
+              "pattern": "^claim-[a-z0-9][a-z0-9-]*$"
+            },
             "uniqueItems": true
           },
           "source_ids": {
             "type": "array",
-            "items": {"type": "string", "pattern": "^source-[a-z0-9][a-z0-9-]*$"},
+            "items": {
+              "type": "string",
+              "pattern": "^source-[a-z0-9][a-z0-9-]*$"
+            },
             "uniqueItems": true
           },
-          "locator": {"type": ["string", "null"], "maxLength": 500}
+          "locator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 500
+          }
         }
       }
     },
     "verification": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["record_status", "claim"],
+      "required": [
+        "record_status",
+        "claim"
+      ],
       "properties": {
-        "record_status": {"type": ["string", "null"], "maxLength": 80},
+        "record_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 80
+        },
         "claim": {
           "oneOf": [
-            {"type": "null"},
+            {
+              "type": "null"
+            },
             {
               "type": "object",
               "additionalProperties": false,
-              "required": ["kind", "certainty"],
+              "required": [
+                "kind",
+                "certainty"
+              ],
               "properties": {
-                "kind": {"enum": ["fact", "memory", "allegation", "interpretation", "uncertain"]},
-                "certainty": {"enum": ["high", "medium", "low", "unknown"]}
+                "kind": {
+                  "enum": [
+                    "fact",
+                    "memory",
+                    "allegation",
+                    "interpretation",
+                    "uncertain"
+                  ]
+                },
+                "certainty": {
+                  "enum": [
+                    "high",
+                    "medium",
+                    "low",
+                    "unknown"
+                  ]
+                }
               }
             }
           ]
@@ -122,7 +261,9 @@
     },
     "source_metadata": {
       "oneOf": [
-        {"type": "null"},
+        {
+          "type": "null"
+        },
         {
           "type": "object",
           "additionalProperties": false,
@@ -138,15 +279,42 @@
             "reliability"
           ],
           "properties": {
-            "source_kind": {"type": "string"},
-            "creator": {"type": ["string", "null"]},
-            "publisher": {"type": ["string", "null"]},
-            "locator": {"type": "object"},
-            "dates": {"type": "object"},
-            "hashes": {"type": "array"},
-            "access": {"enum": ["public", "metadata-only"]},
-            "rights": {"type": "object"},
-            "reliability": {"type": "object"}
+            "source_kind": {
+              "type": "string"
+            },
+            "creator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "publisher": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "locator": {
+              "type": "object"
+            },
+            "dates": {
+              "type": "object"
+            },
+            "hashes": {
+              "type": "array"
+            },
+            "access": {
+              "enum": [
+                "public",
+                "metadata-only"
+              ]
+            },
+            "rights": {
+              "type": "object"
+            },
+            "reliability": {
+              "type": "object"
+            }
           }
         }
       ]
@@ -154,42 +322,120 @@
     "privacy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["risk", "handling", "indexing"],
+      "required": [
+        "risk",
+        "handling",
+        "indexing"
+      ],
       "properties": {
-        "risk": {"enum": ["none", "ordinary-personal", "sensitive", "prohibited"]},
-        "handling": {"enum": ["as-recorded", "minimized", "redacted", "metadata-only", "restricted"]},
-        "indexing": {"enum": ["include", "exclude"]}
+        "risk": {
+          "enum": [
+            "none",
+            "ordinary-personal",
+            "sensitive",
+            "prohibited"
+          ]
+        },
+        "handling": {
+          "enum": [
+            "as-recorded",
+            "minimized",
+            "redacted",
+            "metadata-only",
+            "restricted"
+          ]
+        },
+        "indexing": {
+          "enum": [
+            "include",
+            "exclude"
+          ]
+        }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["record_path", "record_sha256", "exporter", "exporter_version", "chunking_profile"],
+      "required": [
+        "record_path",
+        "record_sha256",
+        "exporter",
+        "exporter_version",
+        "chunking_profile"
+      ],
       "properties": {
-        "record_path": {"type": "string", "pattern": "^(content|sources)/"},
-        "record_sha256": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
-        "exporter": {"enum": ["sztu-connect", "digital-sztu"]},
-        "exporter_version": {"const": "0.1.0"},
-        "chunking_profile": {"const": "structured-fields-v1"}
+        "record_path": {
+          "type": "string",
+          "pattern": "^(content|sources)/"
+        },
+        "record_sha256": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$"
+        },
+        "exporter": {
+          "enum": [
+            "sztu-connect",
+            "digital-sztu"
+          ]
+        },
+        "exporter_version": {
+          "enum": [
+            "0.1.0",
+            "0.2.0"
+          ]
+        },
+        "chunking_profile": {
+          "const": "structured-fields-v1"
+        }
       }
     }
   },
   "allOf": [
     {
-      "if": {"properties": {"chunk_kind": {"const": "claim"}}},
+      "if": {
+        "properties": {
+          "chunk_kind": {
+            "const": "claim"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "evidence_role": {"const": "claim-evidence"},
+          "evidence_role": {
+            "const": "claim-evidence"
+          },
           "verification": {
-            "properties": {"claim": {"type": "object"}}
+            "properties": {
+              "claim": {
+                "type": "object"
+              }
+            }
           }
         }
       }
     },
     {
-      "if": {"properties": {"owner_type": {"const": "source"}}},
-      "then": {"properties": {"source_metadata": {"type": "object"}}},
-      "else": {"properties": {"source_metadata": {"type": "null"}}}
+      "if": {
+        "properties": {
+          "owner_type": {
+            "const": "source"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "source_metadata": {
+            "type": "object"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "source_metadata": {
+            "type": "null"
+          }
+        }
+      }
     }
   ]
 }

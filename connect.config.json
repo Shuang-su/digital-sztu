@@ -1,5 +1,5 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "project": {
     "display_name": "Digital SZTU",
     "plain_text_name": "Digital SZTU",
@@ -15,10 +15,11 @@
     "collections": "content/collections",
     "sources": "sources/records",
     "generated": "data/generated",
-    "private_work": ".work"
+    "private_work": ".work",
+    "knowledge": "content/knowledge"
   },
   "knowledge": {
-    "format": "sztu-connect-knowledge-jsonl@0.1",
+    "format": "digital-sztu-knowledge-jsonl@0.2",
     "chunking_profile": "structured-fields-v1",
     "embeddings_in_git": false
   }

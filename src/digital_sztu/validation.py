@@ -2,15 +2,18 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+from calendar import monthrange
 from pathlib import Path
 from typing import Any
 
 from jsonschema import Draft202012Validator, FormatChecker
+from referencing import Registry, Resource
 
 from .utils import extract_wikilinks, load_json, sha256_file
 
 
 SCHEMA_FILES = {
+    "knowledge": "knowledge.schema.json",
     "event": "event.schema.json",
     "node": "node.schema.json",
     "collection": "collection.schema.json",
@@ -18,6 +21,7 @@ SCHEMA_FILES = {
 }
 
 RECORD_PATTERNS = {
+    "knowledge": "content/knowledge/**/record.json",
     "event": "content/events/**/event.json",
     "node": "content/nodes/**/*.json",
     "collection": "content/collections/**/collection.json",
@@ -109,16 +113,26 @@ def validate_repository(root: Path) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
     validators: dict[str, Draft202012Validator] = {}
-
+    schemas = {}
     for schema_path in sorted((root / "schemas").glob("*.schema.json")):
         try:
-            Draft202012Validator.check_schema(load_json(schema_path))
-        except Exception as exc:  # noqa: BLE001
+            schema = load_json(schema_path)
+            Draft202012Validator.check_schema(schema)
+            schemas[schema_path.name] = schema
+        except Exception as exc:
             errors.append(f"{schema_path.relative_to(root)}: invalid schema: {exc}")
+    missing = set(SCHEMA_FILES.values()) - schemas.keys()
+    if missing or errors:
+        return {"ok": False, "errors": errors + [f"missing or invalid schema: {name}" for name in sorted(missing)], "warnings": warnings, "counts": {}}
+    registry = Registry().with_resources(
+        (schema["$id"], Resource.from_contents(schema))
+        for schema in schemas.values()
+        if "$id" in schema
+    )
 
     for kind, filename in SCHEMA_FILES.items():
         validators[kind] = Draft202012Validator(
-            load_json(root / "schemas" / filename), format_checker=FormatChecker()
+            load_json(root / "schemas" / filename), format_checker=FormatChecker(), registry=registry
         )
 
     records: dict[str, list[tuple[Path, dict[str, Any]]]] = defaultdict(list)
@@ -156,18 +170,47 @@ def validate_repository(root: Path) -> dict[str, Any]:
     all_ids = set(all_records)
     source_ids = {record_id for record_id, (kind, _, _) in all_records.items() if kind == "source"}
     event_ids = {record_id for record_id, (kind, _, _) in all_records.items() if kind == "event"}
+    knowledge_ids = {record_id for record_id, (kind, _, _) in all_records.items() if kind == "knowledge"}
     node_ids = {record_id for record_id, (kind, _, _) in all_records.items() if kind == "node"}
     collection_ids = {record_id for record_id, (kind, _, _) in all_records.items() if kind == "collection"}
 
     node_labels: dict[tuple[str, str], list[str]] = defaultdict(list)
 
-    for path, event in records["event"]:
+    external_ids: dict[str, str] = {}
+    for path, event in records["event"] + records["knowledge"]:
         if path in invalid_paths:
             continue
         rel = path.relative_to(root)
         event_id = event.get("id")
         parts = rel.parts
-        if len(parts) != 5 or parts[:2] != ("content", "events") or parts[-1] != "event.json":
+        if event["type"] == "knowledge":
+            if parts != ("content", "knowledge", event_id, "record.json"):
+                errors.append(f"{rel}: knowledge path must be content/knowledge/<id>/record.json")
+            validity = event["validity"]
+            for key in ("start", "end"):
+                if validity[key] is not None:
+                    try:
+                        _partial_date(validity[key])
+                    except ValueError:
+                        errors.append(f"{rel}: invalid validity {key}")
+            if validity["start"] and validity["end"]:
+                try:
+                    end = _partial_date(validity["end"])
+                    if len(validity["end"]) == 4:
+                        end = date(end.year, 12, 31)
+                    elif len(validity["end"]) == 7:
+                        end = date(end.year, end.month, monthrange(end.year, end.month)[1])
+                    if _partial_date(validity["start"]) > end:
+                        errors.append(f"{rel}: validity start is after end")
+                except ValueError:
+                    pass
+            if event.get("superseded_by") and (event["superseded_by"] not in knowledge_ids or event["superseded_by"] == event_id):
+                errors.append(f"{rel}: invalid superseded_by target")
+            for identifier in event["external_ids"]:
+                if identifier in external_ids:
+                    errors.append(f"{rel}: duplicate external identity {identifier}")
+                external_ids[identifier] = event_id
+        elif len(parts) != 5 or parts[:2] != ("content", "events") or parts[-1] != "event.json":
             errors.append(f"{rel}: event path must be content/events/<year|undated>/<id>/event.json")
         elif event_id:
             if parts[3] != event_id:
@@ -220,7 +263,7 @@ def validate_repository(root: Path) -> dict[str, Any]:
         seen_links: set[tuple[str, str, tuple[str, ...], tuple[str, ...]]] = set()
         for link in event.get("links", []):
             target_id = link.get("target_id")
-            if target_id not in event_ids | node_ids:
+            if target_id not in event_ids | knowledge_ids | node_ids:
                 errors.append(f"{rel}: missing link target {target_id}")
             if target_id == event_id:
                 errors.append(f"{rel}: event cannot link to itself")
@@ -293,6 +336,9 @@ def validate_repository(root: Path) -> dict[str, Any]:
         elif rel.parts[2] != collection_id:
             errors.append(f"{rel}: directory name must match id {collection_id}")
         missing_events = sorted(set(collection.get("event_ids", [])) - event_ids)
+        missing_knowledge = sorted(set(collection.get("knowledge_ids", [])) - knowledge_ids)
+        if missing_knowledge:
+            errors.append(f"{rel}: missing knowledge IDs: {', '.join(missing_knowledge)}")
         missing_focus = sorted(set(collection.get("focus_ids", [])) - node_ids)
         missing_related = sorted(set(collection.get("related_collection_ids", [])) - collection_ids)
         if missing_events:

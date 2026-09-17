@@ -19,13 +19,45 @@
     "narrative"
   ],
   "properties": {
-    "schema_version": {"const": "0.1.0"},
-    "id": {"type": "string", "pattern": "^collection-[a-z0-9][a-z0-9-]*$", "maxLength": 240},
-    "type": {"const": "collection"},
-    "form": {"enum": ["annals", "biographical", "institutional", "thematic"]},
-    "title": {"type": "string", "minLength": 1, "maxLength": 240},
-    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
-    "order": {"enum": ["chronological", "reverse-chronological", "curated"]},
+    "schema_version": {
+      "enum": [
+        "0.1.0",
+        "0.2.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^collection-[a-z0-9][a-z0-9-]*$",
+      "maxLength": 240
+    },
+    "type": {
+      "const": "collection"
+    },
+    "form": {
+      "enum": [
+        "annals",
+        "biographical",
+        "institutional",
+        "thematic"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "order": {
+      "enum": [
+        "chronological",
+        "reverse-chronological",
+        "curated"
+      ]
+    },
     "focus_ids": {
       "type": "array",
       "items": {
@@ -36,57 +68,182 @@
     },
     "event_ids": {
       "type": "array",
-      "minItems": 1,
-      "items": {"type": "string", "pattern": "^event-[a-z0-9][a-z0-9-]*$"},
+      "minItems": 0,
+      "items": {
+        "type": "string",
+        "pattern": "^event-[a-z0-9][a-z0-9-]*$"
+      },
       "uniqueItems": true
     },
     "related_collection_ids": {
       "type": "array",
-      "items": {"type": "string", "pattern": "^collection-[a-z0-9][a-z0-9-]*$"},
+      "items": {
+        "type": "string",
+        "pattern": "^collection-[a-z0-9][a-z0-9-]*$"
+      },
       "uniqueItems": true,
       "default": []
     },
     "privacy": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["risk", "handling", "indexing"],
+      "required": [
+        "risk",
+        "handling",
+        "indexing"
+      ],
       "properties": {
-        "risk": {"enum": ["none", "ordinary-personal", "sensitive", "prohibited"]},
-        "handling": {"enum": ["as-recorded", "minimized", "redacted", "metadata-only", "restricted"]},
-        "indexing": {"enum": ["include", "exclude"]},
-        "notes": {"type": ["string", "null"], "maxLength": 1000}
+        "risk": {
+          "enum": [
+            "none",
+            "ordinary-personal",
+            "sensitive",
+            "prohibited"
+          ]
+        },
+        "handling": {
+          "enum": [
+            "as-recorded",
+            "minimized",
+            "redacted",
+            "metadata-only",
+            "restricted"
+          ]
+        },
+        "indexing": {
+          "enum": [
+            "include",
+            "exclude"
+          ]
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 1000
+        }
       }
     },
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["created_by", "created_at", "input_hashes"],
+      "required": [
+        "created_by",
+        "created_at",
+        "input_hashes"
+      ],
       "properties": {
-        "created_by": {"enum": ["human", "agent-assisted", "imported"]},
-        "created_at": {"type": "string", "format": "date-time"},
+        "created_by": {
+          "enum": [
+            "human",
+            "agent-assisted",
+            "imported"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
         "contributors": {
           "type": "array",
-          "items": {"type": "string", "minLength": 1, "maxLength": 200},
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
           "uniqueItems": true
         },
-        "agent_run_id": {"type": ["string", "null"], "maxLength": 300},
+        "agent_run_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 300
+        },
         "input_hashes": {
           "type": "array",
-          "items": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+          "items": {
+            "type": "string",
+            "pattern": "^sha256:[a-f0-9]{64}$"
+          },
           "uniqueItems": true
         }
       }
     },
-    "narrative": {"type": ["string", "null"], "pattern": "^[^/\\\\]+\\.md$"}
+    "narrative": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[^/\\\\]+\\.md$"
+    },
+    "knowledge_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^knowledge-[a-z0-9][a-z0-9-]*$"
+      },
+      "uniqueItems": true,
+      "default": []
+    }
   },
   "allOf": [
     {
-      "if": {"properties": {"form": {"const": "annals"}}},
-      "then": {"properties": {"order": {"const": "chronological"}}}
+      "if": {
+        "properties": {
+          "form": {
+            "const": "annals"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "order": {
+            "const": "chronological"
+          }
+        }
+      }
     },
     {
-      "if": {"properties": {"form": {"enum": ["biographical", "institutional"]}}},
-      "then": {"properties": {"focus_ids": {"minItems": 1}}}
+      "if": {
+        "properties": {
+          "form": {
+            "enum": [
+              "biographical",
+              "institutional"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "focus_ids": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "anyOf": [
+        {
+          "properties": {
+            "event_ids": {
+              "minItems": 1
+            }
+          }
+        },
+        {
+          "required": [
+            "knowledge_ids"
+          ],
+          "properties": {
+            "knowledge_ids": {
+              "minItems": 1
+            }
+          }
+        }
+      ]
     }
   ]
 }

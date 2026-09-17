@@ -10,7 +10,7 @@
 - `handling`：`as-recorded`、`minimized`、`redacted`、`metadata-only`、`restricted`。
 - `indexing`：`include` 或 `exclude`。
 
-标记描述处理决策；`prohibited` 不是允许发布秘密的许可证。受限材料不得因为需要索引就直接公开。v0.2 升级分支另有统一公开投影；正式发布仍遵循完成普查后入库的顺序。
+标记描述处理决策；`prohibited` 不是允许发布秘密的许可证。公开图谱、Markdown 阅读页、SVG、HTML 和知识 JSONL 共用相同排除规则，见 [图谱的公开边界](ARCHIVE_GRAPH.md#公开边界)。有被排除证据的记录整体排除，反证不会静默删除。
 
 ## 扫描与复核
 

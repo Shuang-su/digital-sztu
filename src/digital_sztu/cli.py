@@ -4,23 +4,27 @@ import argparse
 import json
 import platform
 import sys
+import webbrowser
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Any
 
 from .build import build_indexes, export_knowledge
+from .graph import write_viewer
+from .public import check_public_records
+from .discovery import Research, initialize, research_lock
 from .chat import load_messages, render_chat
 from .ingest import create_manifest
 from .privacy import scan_privacy
 from .utils import atomic_write_text, ensure_within, find_repo_root
 from .validation import validate_repository
 from .runtime import environment_diagnostics
-from .public import check_public_records
 
 
 def emit(operation: str, result: dict[str, Any], as_json: bool) -> None:
     if as_json:
         envelope = {
-            "contract_version": "0.1.0",
+            "contract_version": "0.2.0",
             "operation": operation,
             "ok": bool(result.get("ok")),
             "data": result,
@@ -129,6 +133,23 @@ def build_parser() -> argparse.ArgumentParser:
     chat.add_argument("--title", required=True)
     chat.add_argument("--output", type=Path, required=True)
     chat.add_argument("--json", action="store_true", dest="as_json")
+    graph = sub.add_parser("graph")
+    graph.add_argument("--open", action="store_true")
+    graph.add_argument("--output", type=Path)
+    graph.add_argument("--json", action="store_true", dest="as_json")
+
+    discover = sub.add_parser("discover")
+    discover.add_argument("action", choices=("init", "seed", "resume", "status", "review", "export", "promote", "sweep", "inspect", "external"))
+    discover.add_argument("--database", type=Path)
+    discover.add_argument("--legacy-state", type=Path)
+    discover.add_argument("--file", type=Path)
+    discover.add_argument("--name")
+    discover.add_argument("--id")
+    discover.add_argument("--complete", action="store_true")
+    discover.add_argument("--limit", type=int, default=100)
+    discover.add_argument("--kinds")
+    discover.add_argument("--progress", action="store_true", help="Emit committed progress as JSONL on stderr")
+    discover.add_argument("--json", action="store_true", dest="as_json")
     return parser
 
 
@@ -137,16 +158,66 @@ def main(argv: list[str] | None = None) -> int:
     operation = args.command
     try:
         root = args.root.resolve() if args.root else find_repo_root()
+        from .promotion import recover_promotion
+        recover_promotion(root)
         if operation == "doctor":
             result = doctor(root)
-        elif operation == "public-check":
-            result = check_public_records(root)
         elif operation == "validate":
             result = validate_repository(root)
+        elif operation == "public-check":
+            result = check_public_records(root)
         elif operation == "privacy-scan":
             result = scan_privacy(root, strict=args.strict)
         elif operation == "build":
             result = build_indexes(root)
+        elif operation == "graph":
+            result = build_indexes(root)
+            if result["ok"]:
+                result = write_viewer(root, _work_output(root, args.output, "graph"))
+                if args.open:
+                    result["opened"] = webbrowser.open(Path(result["output"]).as_uri())
+        elif operation == "discover":
+            database = _work_output(root, args.database, "discovery/state.sqlite3")
+            if args.action == "init":
+                result = initialize(database, args.legacy_state)
+            else:
+                with (nullcontext() if args.action in ("status", "inspect") else research_lock(database)):
+                    run = Research(database, readonly=args.action in ("status", "inspect"))
+                    try:
+                        if args.action == "resume":
+                            if args.limit < 1:
+                                raise ValueError("limit must be positive")
+                            result = run.resume(args.limit, args.kinds.split(",") if args.kinds else None,
+                                progress=(lambda frame: print(json.dumps(frame, ensure_ascii=False), file=sys.stderr, flush=True)) if args.progress else None)
+                        elif args.action == "status":
+                            result = run.status()
+                        elif args.action == "inspect":
+                            if not args.id:
+                                raise ValueError("inspect requires --id")
+                            result = run.review_packet(args.id)
+                        elif args.action == "sweep":
+                            queries = json.loads(args.file.read_text(encoding="utf-8")) if args.file else None
+                            result = run.sweep(queries, args.complete)
+                        elif args.action == "seed":
+                            if not args.name:
+                                raise ValueError("seed requires --name")
+                            run.seed(args.name)
+                            result = run.status()
+                        elif args.action == "review":
+                            if not args.file:
+                                raise ValueError("review requires --file")
+                            result = run.review(json.loads(args.file.read_text(encoding="utf-8")))
+                        elif args.action == "external":
+                            if not args.file:
+                                raise ValueError("external requires --file")
+                            result = run.external(json.loads(args.file.read_text(encoding="utf-8")))
+                        elif args.action == "export":
+                            result = run.export(database.parent / "export")
+                        else:
+                            from .promotion import promote
+                            result = promote(root, run, args.file)
+                    finally:
+                        run.close()
         elif operation == "check":
             result = combined_check(root, strict=args.strict)
         elif operation == "ingest":
@@ -184,7 +255,7 @@ def main(argv: list[str] | None = None) -> int:
         else:
             raise RuntimeError(f"Unknown command: {operation}")
         emit(operation, result, getattr(args, "as_json", False))
-        return 0 if result.get("ok") else 1
+        return 130 if result.get("interrupted") else (0 if result.get("ok") else 1)
     except Exception as exc:  # noqa: BLE001
         result = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
         emit(operation, result, getattr(args, "as_json", False))

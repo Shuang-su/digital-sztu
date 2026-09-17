@@ -1,0 +1,4 @@
+interface:
+  display_name: "发现校园来源"
+  short_description: "恢复链式普查、复核直接校园证据并入库为正式档案"
+  default_prompt: "使用 $discover-campus-sources 恢复当前校园来源普查，保留分页与候选状态，复核证据后按完成门槛入库。"

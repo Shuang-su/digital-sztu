@@ -19,185 +19,78 @@
     "narrative"
   ],
   "properties": {
-    "schema_version": {"const": "0.1.0"},
-    "id": {"type": "string", "pattern": "^event-[a-z0-9][a-z0-9-]*$", "maxLength": 240},
-    "type": {"const": "event"},
-    "title": {"type": "string", "minLength": 1, "maxLength": 240},
+    "schema_version": {
+      "enum": [
+        "0.1.0",
+        "0.2.0"
+      ]
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^event-[a-z0-9][a-z0-9-]*$",
+      "maxLength": 240
+    },
+    "type": {
+      "const": "event"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
     "aliases": {
       "type": "array",
-      "items": {"type": "string", "minLength": 1, "maxLength": 240},
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 240
+      },
       "uniqueItems": true,
       "default": []
     },
     "status": {
-      "enum": ["draft", "source-backed", "corroborated", "contested", "withdrawn"]
+      "enum": [
+        "draft",
+        "source-backed",
+        "corroborated",
+        "contested",
+        "withdrawn"
+      ]
     },
-    "time": {"$ref": "#/$defs/time"},
-    "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+    "time": {
+      "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
     "claims": {
       "type": "array",
       "minItems": 1,
-      "items": {"$ref": "#/$defs/claim"}
+      "items": {
+        "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/claim"
+      }
     },
     "links": {
       "type": "array",
-      "items": {"$ref": "#/$defs/link"},
+      "items": {
+        "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/link"
+      },
       "default": []
     },
-    "privacy": {"$ref": "#/$defs/privacy"},
-    "provenance": {"$ref": "#/$defs/provenance"},
-    "narrative": {
-      "type": ["string", "null"],
-      "pattern": "^[^/\\\\]+\\.md$"
-    }
-  },
-  "$defs": {
-    "partialDate": {
-      "type": ["string", "null"],
-      "pattern": "^\\d{4}(?:-\\d{2}(?:-\\d{2})?)?$"
-    },
-    "time": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["kind", "start", "end", "precision", "certainty", "timezone", "original_text"],
-      "properties": {
-        "kind": {"enum": ["point", "range", "before", "after", "unknown"]},
-        "start": {"$ref": "#/$defs/partialDate"},
-        "end": {"$ref": "#/$defs/partialDate"},
-        "precision": {"enum": ["day", "month", "year", "unknown"]},
-        "certainty": {"enum": ["exact", "approximate", "unknown"]},
-        "timezone": {"type": ["string", "null"], "minLength": 1},
-        "original_text": {"type": ["string", "null"], "maxLength": 300}
-      },
-      "allOf": [
-        {
-          "if": {"properties": {"kind": {"const": "point"}}},
-          "then": {"properties": {"start": {"type": "string"}, "end": {"type": "null"}}}
-        },
-        {
-          "if": {"properties": {"kind": {"const": "range"}}},
-          "then": {"properties": {"start": {"type": "string"}, "end": {"type": "string"}}}
-        },
-        {
-          "if": {"properties": {"kind": {"const": "before"}}},
-          "then": {"properties": {"start": {"type": "null"}, "end": {"type": "string"}}}
-        },
-        {
-          "if": {"properties": {"kind": {"const": "after"}}},
-          "then": {"properties": {"start": {"type": "string"}, "end": {"type": "null"}}}
-        },
-        {
-          "if": {"properties": {"kind": {"const": "unknown"}}},
-          "then": {
-            "properties": {
-              "start": {"type": "null"},
-              "end": {"type": "null"},
-              "precision": {"const": "unknown"},
-              "certainty": {"const": "unknown"}
-            }
-          }
-        }
-      ]
-    },
-    "citation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["source_id", "role"],
-      "properties": {
-        "source_id": {"type": "string", "pattern": "^source-[a-z0-9][a-z0-9-]*$"},
-        "role": {"enum": ["supports", "contradicts", "context"]},
-        "locator": {"type": ["string", "null"], "maxLength": 500},
-        "note": {"type": ["string", "null"], "maxLength": 1000}
-      }
-    },
-    "claim": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "text", "kind", "certainty", "citations"],
-      "properties": {
-        "id": {"type": "string", "pattern": "^claim-[a-z0-9][a-z0-9-]*$", "maxLength": 240},
-        "text": {"type": "string", "minLength": 1, "maxLength": 4000},
-        "kind": {"enum": ["fact", "memory", "allegation", "interpretation", "uncertain"]},
-        "certainty": {"enum": ["high", "medium", "low", "unknown"]},
-        "citations": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/citation"},
-          "uniqueItems": true
-        }
-      },
-      "allOf": [
-        {
-          "if": {"properties": {"kind": {"enum": ["fact", "allegation"]}}},
-          "then": {
-            "properties": {
-              "citations": {
-                "contains": {
-                  "type": "object",
-                  "properties": {"role": {"const": "supports"}},
-                  "required": ["role"]
-                },
-                "minContains": 1
-              }
-            }
-          }
-        }
-      ]
-    },
-    "link": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["relation", "target_id", "claim_ids", "source_ids"],
-      "properties": {
-        "relation": {"type": "string", "pattern": "^[a-z][a-z0-9-]*$", "maxLength": 80},
-        "target_id": {
-          "type": "string",
-          "pattern": "^(event|person|org|place|institution|topic)-[a-z0-9][a-z0-9-]*$"
-        },
-        "claim_ids": {
-          "type": "array",
-          "minItems": 1,
-          "items": {"type": "string", "pattern": "^claim-[a-z0-9][a-z0-9-]*$"},
-          "uniqueItems": true
-        },
-        "source_ids": {
-          "type": "array",
-          "minItems": 1,
-          "items": {"type": "string", "pattern": "^source-[a-z0-9][a-z0-9-]*$"},
-          "uniqueItems": true
-        },
-        "note": {"type": ["string", "null"], "maxLength": 1000}
-      }
-    },
     "privacy": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["risk", "handling", "indexing"],
-      "properties": {
-        "risk": {"enum": ["none", "ordinary-personal", "sensitive", "prohibited"]},
-        "handling": {"enum": ["as-recorded", "minimized", "redacted", "metadata-only", "restricted"]},
-        "indexing": {"enum": ["include", "exclude"]},
-        "notes": {"type": ["string", "null"], "maxLength": 1000}
-      }
+      "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/privacy"
     },
     "provenance": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["created_by", "created_at", "input_hashes"],
-      "properties": {
-        "created_by": {"enum": ["human", "agent-assisted", "imported"]},
-        "created_at": {"type": "string", "format": "date-time"},
-        "contributors": {
-          "type": "array",
-          "items": {"type": "string", "minLength": 1, "maxLength": 200},
-          "uniqueItems": true
-        },
-        "agent_run_id": {"type": ["string", "null"], "maxLength": 300},
-        "input_hashes": {
-          "type": "array",
-          "items": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
-          "uniqueItems": true
-        }
-      }
+      "$ref": "urn:digital-sztu:schema:record-common:0.2.0#/$defs/provenance"
+    },
+    "narrative": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[^/\\\\]+\\.md$"
     }
   }
 }
