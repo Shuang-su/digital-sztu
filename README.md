@@ -1,4 +1,4 @@
-# Digital SZTU
+# ![Digital SZTU](docs/assets/digital-sztu-header.png)
 <br>
 
 
