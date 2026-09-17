@@ -1,9 +1,11 @@
-# ![Digital SZTU](docs/assets/digital-sztu-header.png)
+![Digital SZTU](docs/assets/digital-sztu-header.png)
+
+# Digital SZTU
 <br>
 
 
 
-Digital SZTU，一个深圳技术大学的数字档案计划。
+**Digital SZTU**，一个深圳技术大学的数字档案计划。
 
 为 Agent Plugin 适配与优化，致力于让更多人能够轻松存档发生在 🐔🧱 的故事，远期目标是打造通用的校园 RAG 知识库。
 
