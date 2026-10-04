@@ -1,6 +1,6 @@
 # 校园资料选录
 
-本目录按所引来源的文字整理十七个小范围条目，核验日期为2026-10-05。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
+本目录按所引来源的文字整理十八个小范围条目，核验日期为2026-10-05。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
 
 | 条目 | 分类 | 阅读稿 |
 | --- | --- | --- |
@@ -14,6 +14,7 @@
 | 科研与校企合作部的职责简介 | 校园机构资料 | [阅读](campus-institutions/knowledge-research-department-profile.md) |
 | 新材料与新能源学院概况中的成立年份 | 校园机构资料 | [阅读](campus-institutions/knowledge-nmne-college-profile.md) |
 | 显示技术实验室介绍中的实验教学任务 | 校园机构资料 | [阅读](campus-institutions/knowledge-display-technology-laboratory-3632.md) |
+| 物流仿真实验室介绍中的教学服务对象 | 校园机构资料 | [阅读](campus-institutions/knowledge-logistics-simulation-laboratory-2658.md) |
 | 2021年度青年教师培养项目结题通知的材料目录 | 教务通知资料 | [阅读](teaching-notices/knowledge-jw-teacher-training-notice-2487.md) |
 | 《基础英语》调课通知（2018年9月27日落款） | 教务通知资料 | [阅读](teaching-notices/knowledge-basic-english-rescheduling-1165.md) |
 | 《工程伦理》补课通知（2018年9月25日落款） | 教务通知资料 | [阅读](teaching-notices/knowledge-engineering-ethics-makeup-1166.md) |
