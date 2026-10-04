@@ -22,7 +22,7 @@
 
 我们希望可以从校园事件记录逐步扩展到校园历史、档案、信息与知识，构建能够引用来源、辨别时效的校园 RAG（检索增强生成）知识库。
 
-[快速开始](#快速开始) · [Agent 上手指南](docs/GETTING_STARTED.md) · [数据模型](docs/DATA_MODEL.md) · [参与贡献](CONTRIBUTING.md) · [长期目标](#长期目标)
+[快速开始](#快速开始) · [Agent 上手指南](docs/GETTING_STARTED.md) · [数据模型](docs/DATA_MODEL.md) · [校园资料目录](docs/campus-materials/README.md) · [参与贡献](CONTRIBUTING.md) · [长期目标](#长期目标)
 
 <br>
 
