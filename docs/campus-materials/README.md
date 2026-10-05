@@ -1,6 +1,6 @@
 # 校园资料选录
 
-本目录按所引来源的文字整理十八个小范围条目，核验日期为2026-10-05。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
+本目录按所引来源的文字整理十九个小范围条目，核验日期为2026-10-05。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
 
 | 条目 | 分类 | 阅读稿 |
 | --- | --- | --- |
@@ -19,6 +19,7 @@
 | 《基础英语》调课通知（2018年9月27日落款） | 教务通知资料 | [阅读](teaching-notices/knowledge-basic-english-rescheduling-1165.md) |
 | 《工程伦理》补课通知（2018年9月25日落款） | 教务通知资料 | [阅读](teaching-notices/knowledge-engineering-ethics-makeup-1166.md) |
 | 中德智能制造学院面向2025级的辅修专业接收计划 | 教务通知资料 | [阅读](teaching-notices/knowledge-sgim-minor-program-notice-4362.md) |
+| 2019—2020学年第二学期网络教学准备通知 | 教务通知资料 | [阅读](teaching-notices/knowledge-online-teaching-preparation-notice-1290.md) |
 | 实验室试剂材料易耗品管理系统培训通知（2018年6月5日落款） | 校园服务通知资料 | [阅读](campus-service-notices/knowledge-lab-consumables-training-notice-2161.md) |
 | 与乌克兰国立航空大学代表的会见报道（2019年6月21日） | 校园报道资料 | [阅读](campus-reports/knowledge-aviation-university-meeting-1150.md) |
 | “2024年下半年校园网络质量提升座谈会”的报道 | 校园报道资料 | [阅读](campus-reports/knowledge-campus-network-forum-2302.md) |
