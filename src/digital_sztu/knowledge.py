@@ -6,6 +6,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from .public import dataset_revision
 from .utils import canonical_json, load_json, sha256_bytes, sha256_file, write_json, atomic_write_bytes
 
 
@@ -104,9 +105,10 @@ def _base_chunk(
     evidence_role: str,
 ) -> dict[str, Any]:
     logical = locator.replace("/", ":")
+    namespace = "digital-sztu" if owner_type == "knowledge" else "sztu-connect"
     chunk = {
-        "schema_version": "0.1.0",
-        "chunk_id": f"urn:sztu-connect:chunk:{owner_id}:{logical}",
+        "schema_version": "0.2.0",
+        "chunk_id": f"urn:{namespace}:chunk:{owner_id}:{logical}",
         "revision_id": "sha256:" + ("0" * 64),
         "owner_id": owner_id,
         "owner_type": owner_type,
@@ -131,7 +133,7 @@ def _base_chunk(
             "record_path": path.relative_to(root).as_posix(),
             "record_sha256": f"sha256:{sha256_file(path)}",
             "exporter": "digital-sztu",
-            "exporter_version": "0.1.0",
+            "exporter_version": "0.2.0",
             "chunking_profile": "structured-fields-v1",
         },
     }
@@ -145,20 +147,20 @@ def build_knowledge_chunks(
 ) -> list[dict[str, Any]]:
     forms_by_event: dict[str, set[str]] = {}
     for _, collection in records["collection"]:
-        for event_id in collection.get("event_ids", []):
+        for event_id in collection.get("event_ids", []) + collection.get("knowledge_ids", []):
             forms_by_event.setdefault(event_id, set()).add(collection["form"])
 
     chunks: list[dict[str, Any]] = []
 
-    for path, event in records["event"]:
+    for path, event in records["event"] + records["knowledge"]:
         privacy = event["privacy"]
         common = {
             "root": root,
             "path": path,
             "owner_id": event["id"],
-            "owner_type": "event",
+            "owner_type": event["type"],
             "title": event["title"],
-            "time": event["time"],
+            "time": event.get("time", event.get("validity")),
             "history_forms": sorted(forms_by_event.get(event["id"], set())),
             "privacy": privacy,
             "record_status": event["status"],
@@ -311,13 +313,13 @@ def write_knowledge_export(
     payload = (("\n".join(lines) + "\n") if lines else "").encode("utf-8")
     digest = sha256_bytes(payload)
     manifest = {
-        "schema_version": "0.1.0",
-        "format": "sztu-connect-knowledge-jsonl@0.1",
+        "schema_version": "0.2.0",
+        "format": "digital-sztu-knowledge-jsonl@0.2",
         "chunking_profile": "structured-fields-v1",
         "chunks_path": "chunks.jsonl",
         "chunk_count": len(chunks),
         "chunks_sha256": f"sha256:{digest}",
-        "dataset_revision": f"sha256:{digest}",
+        "dataset_revision": dataset_revision(root, records),
         "embedding": None,
     }
     manifest_validator = Draft202012Validator(

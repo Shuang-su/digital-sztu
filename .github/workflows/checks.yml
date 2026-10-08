@@ -27,6 +27,7 @@ jobs:
       - run: digital-sztu check --json
       - run: python -m unittest discover -s tests
       - run: digital-sztu build --json
+      - run: python scripts/build_pages.py
       - run: git diff --exit-code -- data/generated
 
   bootstrap:
@@ -52,3 +53,43 @@ jobs:
       - run: python -m unittest discover -s tests -p test_bootstrap.py -v
       - run: python -m unittest discover -s tests -p test_exploration_guidance.py -v
       - run: git diff --exit-code
+
+  pages-build:
+    name: Build public Pages artifact
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check, bootstrap]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: python -m pip install -r requirements.lock
+      - run: python -m pip install --no-deps -e .
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - run: python scripts/build_pages.py
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: .work/pages
+
+  pages-deploy:
+    name: Deploy public archive graph
+    needs: pages-build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

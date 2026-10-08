@@ -21,6 +21,13 @@
 
 命名兼容实现提交：`a2c1ed33f334f3d0c0fa7933d43d38065315e7d5`。
 
-## 待核验
+## 服务端与常用工作副本核验
 
-提交后推送命名 PR，等待服务端 CI，正常合并并快进常用工作副本，再验证本地升级安装。当前未发布 PyPI 包或 GitHub Release；本项目继续按仓库源码安装，wheel 作为本地验证产物。
+- [PR #5](https://github.com/Shuang-su/digital-sztu/pull/5) 已正常合并；PR 的 Linux、macOS、Windows 和 Cursor Bugbot 均通过。
+- 服务端 main 为 `3c5795403070405ad12bfb1285350c697d5e32b2`，对应 [主分支 CI](https://github.com/Shuang-su/digital-sztu/actions/runs/33980841196) 全部成功。旧仓库 API 地址也读回同一个数字 ID 与新名称。
+- 常用工作副本仅快进到该 SHA，工作树干净；项目内虚拟环境已安装 digital-sztu 0.1.1。新旧命令、新旧模块均实际运行 doctor 通过。
+- 已卸载旧 distribution，但 editable 安装在 src 中遗留的旧 egg-info 仍被 importlib.metadata 发现；将这一已确认的生成元数据移入项目缓存保留后，新包标识唯一，旧命令和模块兼容仍正常。
+- 已检查本机 Codex 插件清单，未发现安装的旧 SZTU 插件，因此没有修改插件缓存或额外创建个人 marketplace。仓库插件标识与版本已经服务端发布。
+- 当前未发布 PyPI 包或 GitHub Release；本项目继续按仓库源码安装，wheel 作为实际安装验证产物。
+
+- 已向 [长期路线 Issue #1](https://github.com/Shuang-su/digital-sztu/issues/1#issuecomment-5553581487) 回写命名交付结果，并读回正文验证；Issue 保持开放。

@@ -8,37 +8,67 @@
 - 主目录、命名工作区、升级工作区的虚拟环境保留备份后重建；依赖按 requirements.lock 安装。独立主分支工程修复工作区使用新的本地环境。
 - 系统卷剩余空间在检查期间不足 1 GiB，首次完整测试被新增 256 MiB 研究写入预检阻止；改用项目卷测试暂存后通过。未执行系统盘清理。
 - 真实研究状态制作 SQLite 一致性备份，integrity_check 为 ok；副本和真实索引迁移前后 records、ops、edges、audit、meta 的行数及整体 SHA-256 均一致。副本索引迁移约 0.47 秒，状态查询约 0.11 秒；这是本机单次测量，不代表网络研究吞吐提升倍数。
-- 升级分支测试 196 项通过（2 项默认跳过）；独立主分支修复测试 124 项通过（2 项默认跳过）。测试临时目录显式设在项目卷。
+- 升级分支测试 203 项通过（2 项默认跳过）；独立主分支修复最初 124 项、审查修复后 128 项通过（2 项默认跳过）。测试临时目录显式设在项目卷。
 - 新测试覆盖索引失败回滚、过滤保留其他任务、中断后的已提交页与元数据、空间不足无错误二次写入、stderr 进度与单份 stdout JSON、只读状态不迁移、缺失来源提示、移动环境诊断，以及超过 8 MiB 文件尾部凭据检查。
 - 旧第三方归档离线哈希和目录树校验通过，无网络或上游代码执行。
 - 两个分支的 check 与两次构建确定性通过；严格扫描没有阻断项。正式内容仍为零，不能把空图构建通过描述成真实内容发布验收。
 
 ## 待完成
 
-- 保存本阶段 checkpoint、服务端 PR/CI/合并核验。
+- 独立工程 PR #6 已合并，主分支为 b95971c9dfe477e94a3a5179bd4750da81d9131e。完整 v0.2 保持草稿 PR #7。
 - 持续执行规则内普查、原文与校园增量复核、连续两轮定向补漏。
 - 达到 promotion_ready 后正式入库，完成真实三种视图、本地及线上浏览和来源跳转核验，再合并完整 v0.2、发布 Pages。
 
-## 主分支工程检查点与审查修复
+## 当前研究状态
 
-- 已推送检查点 35a90ba07038571a009ad9132ee4c0b7ecfc7667，创建 PR #6。该检查点的 Linux check、macOS 与 Windows 初始化 CI 均成功。
-- 自动审查提出明文密钥/配置扩展名漏扫与 URL fragment 认证参数漏检，均已补充修复。未知扩展名先以有限 UTF-8 样本识别文本；普通节标题锚点仍允许。
-- 修复后 127 项单元测试通过（2 项默认平台集成跳过）；严格扫描、公开正式记录检查与 check 通过。等待更新后 CI，再进行合并核验。
+8 个旧批次输入再次逐个核对 SHA-256，全部不变。目录修复后的研究执行已恢复；上一个执行片段新增完成 268 项操作，新发现保留了 1,079 项操作。收到继续指令后从已提交断点重放，未将没有最终输出的执行片段记为完成。
 
-- 后续审查的两项问题也已修复：公开投影按完整 wikilink ID 匹配排除项，避免短 ID 错误排除长 ID；环境诊断单测隔离磁盘空间条件。新增回归后 128 项测试通过（2 项默认平台集成跳过）。
+## 真实恢复与证据复核
 
-## 公开导出后续修复检查点
+- 对本任务的研究进程发送 SIGINT，退出码 130，最终标准输出为有效 JSON；恢复命令包含当前绝对 root 和 database。已提交页保留，后续 integrity_check 为 ok。
+- 完整读取 5 份固定提交 README 并核对 Git blob 哈希；1 个项目以作者自述的校园用途确认，4 个保留具体证据缺口。补读 MyCOS 源码只作文本核查，不执行脚本、不推断实际效果或学校授权。
+- 发现 2 条旧候选记录仍为 candidate，但关联复核操作被旧实现标记 complete。修复 review 的状态转移并增加一次性审计迁移；不能通过未决复核制造完成。新增复核项继续处于 scoped-review-required。
+- 私有证据、研究图谱和队列保持在 .work；公开交付不包含它们。全部正式记录仍待完成普查后入库。
 
-- PR #6 已合并，主分支 b95971c9dfe477e94a3a5179bd4750da81d9131e 的 CI 成功。合并后到达的审查继续在独立分支 codex/public-export-hardening 处理。
-- 补齐加密/DSA/PGP 私钥标头和云存储签名 URL 参数检查；主分支 build 与 export-knowledge 共用公开投影。修正旧测试中要求导出禁止索引记录的过期预期，增加真源保持不变验证。
-- 131 项单元测试通过（2 项默认跳过），check 通过；尚未推送或合并本次后续修复。
-- 本次用户询问普查是否完成：实时状态仍为 partial、promotion_ready=false；已完成 25,304 个操作，pending 57,142，未完成分页 453，两轮无新增补漏尚为 0。这些是当时快照，不能当成项目数量或固定完成百分比。
+## 同步审查修复
+
+PR #6 的明文密钥/配置漏扫、URL fragment 认证参数、wikilink 前缀误匹配和诊断测试空间依赖均同步到升级分支。实际执行中恢复了两条历史未决候选复核，6 条 scoped-review-required 保持阻止入库；没有把它们标为无关或丢弃。
+
+## 服务端核验与派生交付检查
+
+- PR #6 合并时间：2026-09-06T07:43:09Z；最终代码 3f5923e 的 Linux、macOS、Windows 和 Bugbot 检查全部成功。本地主目录已快进至服务端 main，新旧命令检查通过，工作区干净。
+- 升级检查点 6af67932f9759d0cc94a35f36539a083793673ca 已推送，草稿 PR #7 的 Linux、macOS、Windows 检查全部通过；Pages 构建和部署按条件跳过。
+- 私有研究导出 7 个文件，共 178,404,842 字节，逐行检查无凭据模式命中；8 个旧批次输入哈希不变。研究与正式档案继续分开。
+- 合并主分支时保留 v0.2 的 CLI、图谱公开边界说明和更新后的工程记录；所有生产源文件修复均已在升级分支存在。
+- PR #6 合并后到达的后续审查提出额外 PEM 形式、云签名 URL 和 v0.1 派生投影问题，作为后续独立修复处理，不能把此前检查通过表述为已覆盖所有格式。
+
+## 同步后续公开检查修复
+
+- 保留 v0.2 现有构建投影，补齐私钥标头和云存储签名参数检查，并增加投影/导出回归。206 项单元测试通过（2 项默认跳过）。
+- 普查实时快照仍为 partial，pending 57,142，未完成分页 453，补漏轮次 0；当前 resume 进程仍在推进。尚未正式入库或发布图谱。
+
+## PR #8 工程合并与新一批证据复核
+
+- 后续公开导出修复 PR #8 已正常合并，主分支为 d858c736c3f4bd9414c2e58da8262d3fab7ba58b；PR 最终 head 2b216337b183dd3fdff3266a4191ea869aff66d2 的 Linux、macOS、Windows 与 Bugbot 检查均成功。升级分支同步修复，保留 v0.2 内容版本计算与多形式图谱构建。
+- 用户再次确认按普查、两轮补漏、正式入库、图谱发布顺序执行。新批 33 条原文复核写入后逐条回读通过：17 条确认或复确认（净新增 5 个确认实体）、7 条有依据的范围排除、9 条仍为候选并保留补证要求。另将简介里的成绩预览工具链接作为独立研究来源保留，记录公开 API 404 访问缺口。
+- 本批复核使用固定提交及 Git blob 字节/哈希验证；缓存中经既有流程脱敏的两份 README 明确不作为原始字节副本。私有复核目录初次 19 个 JSON 文件共 1,102,240 字节逐项扫描，无凭据模式命中；该目录不作为公开档案提交。后续派生关系检查仍在添加材料。
+- 真实工作进程经 SIGINT 返回 130，33 条复核成功保存后 SQLite integrity_check 为 ok；研究已从保存的分页断点恢复。阶段快照为 completed 26,037、pending 61,477、missing 337、unfinished pagination 858、no-new rounds 0，promotion_ready 仍为 false。不得把本工程合并视为普查、正式入库或 Pages 已完成。
+
+## 阶段复核、缺失材料与恢复执行
+
+- 在 33 条原文复核后，补充 1 条访问缺口、4 条代码派生关系复核和 6 条缺失 README 的替代证据复核，累计 44 条写入、40 个不同研究实体；最终意见已从 SQLite 回读，6 个缺失操作均带有 alternative evidence reviewed 解决记录。
+- 核心脚本对照验证原始字节：三个成绩提醒仓库 blob 完全相同，第四个仅 CRLF/LF 不同。保留工作流差异，尚不认定原创者，也不计成四个独立校园项目。
+- README 批次正常返回 processed=200：41 个成功读取、159 个转入缺失材料复核，没有通过自动排除清空候选。随后从已提交状态继续执行完整操作队列。
+- 44 个私有 JSON/JSONL 研究产物共 1,619,126 字节完成原文和解码字符串扫描，无凭据模式命中；另检查阶段 Markdown 报告并加入哈希清单。8 个旧批次输入再次流式哈希验证，全部保持不变。研究产物和账号关系不提交为正式档案。
+- check、public-check、严格扫描成功，20 个派生文件连续构建一致；合并同步后的 206 项单元测试通过（2 项默认跳过），checkpoint 0b0a1f057a5e771fb0b728ed1e42cdfa8596665c 的 Linux/macOS/Windows CI 均成功。无正式内容，不能以此代替真实图谱验收。
+- Issue #2 阶段进展已回写并从服务端比对全文：https://github.com/Shuang-su/digital-sztu/issues/2#issuecomment-5558059856 。PR #6 的三项晚到审查回复也已从服务端核对；修复由已合并 PR #8 交付。
+- 阶段快照：completed 26,244、pending 64,132、missing 495、unfinished pagination 892。普查仍 partial、promotion_ready=false、两轮无新增补漏 0/2；仍未正式入库或发布 Pages。
 
 ## JSON 转义扫描与研究快照核验
 
 - 最新私有研究快照 7 个文件，共 207,631,637 字节，已完整流式扫描，JSONL 字段另行解码检查。sources.jsonl 在既有上游 README 的配置示例中发现 2 处编号式密码占位命中，逐项核验为示例，未观察到可用真实凭据；原研究资料保持不变，不将其描述为零模式命中或作为正式摘录。
 - 该核验暴露仅扫描序列化 JSON 会漏掉字符串内带引号的赋值。正式记录公开检查现同时检查解码字段；JSON/JSONL 隐私扫描逐行解码字符串 token，覆盖嵌套示例和 Unicode 转义字段名，不因大文件加载上限跳过。报告不回显值，并合并原文/解码视图同一行同类型的重复提示。
-- 新增真实漏检形式的回归验证：带引号的赋值在公开投影中被排除、public-check 阻断，JSON 与 JSONL 的嵌套转义及 Unicode 字段名由严格扫描阻断。133 项单元测试通过（2 项默认跳过）。本修复作为独立工程更新，不提前入库或发布档案图谱。
+- 新增真实漏检形式的回归验证：带引号的赋值在公开投影中被排除、public-check 阻断，JSON 与 JSONL 的嵌套转义及 Unicode 字段名由严格扫描阻断。208 项单元测试通过（2 项默认跳过）。本修复作为独立工程更新，不提前入库或发布档案图谱。
 
 ### PR #9 review follow-up
 
@@ -46,12 +76,47 @@
 - Unicode-escaped advisory information now shares decoded scanning and per-line deduplication; advisory findings remain nonblocking.
 - Main-compatible suite: 135 tests passed (2 skipped). Nested canonical record exclusion and JSON stream blocking were exercised with synthetic values; outputs do not echo them.
 
+- Upgrade suite after review follow-up: 210 tests passed (2 skipped); check, strict privacy scan, and public-check succeeded.
+
 - Boundary review: reserve an additional decoding pass for the enclosing JSON field; regression now exercises exactly eight nested wrappers as well as depths two and four.
 
-### Continuation: independent decoding views
-
-- Latest user request: 继续。 Survey and two no-new rounds still precede archive promotion and Pages.
-- Addressed review 3943509907: credential and advisory patterns now match each decoding view independently. Public record inspection preserves serialized field boundaries, avoiding cross-view or cross-field synthetic matches.
-- Added harmless scalar and canonical-record regression; nested credential and Unicode advisory coverage remains.
+- Full nested-decoding rescan of the seven-file, 207,631,637-byte private export completed. Two per-line credential-pattern findings were reviewed: prior numbered example placeholders and a dynamic Set-Cookie code template. 859 advisory findings remain review context. All eight original input hashes matched. See private research review report and export-nested-scan-disposition.json; raw research is not approved for public publication.
+- Both boundary regression suites passed again (135 main-compatible / 210 upgrade tests; 2 skipped each), alongside check, strict privacy scan and public-check. Census remains partial; no promotion or Pages deployment.
 
 - Independent-view main-compatible regression suite: 136 tests successful, 2 skipped.
+
+- Continued at user request: fixed independent decoding views in upgrade; 211 tests successful (2 skipped), check/strict privacy/public-check successful. PR #9 remains separate engineering delivery; census still partial.
+
+## 2026-09-06 继续执行：工程合并与三项复核
+
+- PR #9 已正常合并，服务端 merge SHA d3720068c0131fc9ed3fdf5c5621be2e7d2ec56a；合并前最新提交 7a7040c 的 Linux/macOS/Windows 与 Bugbot 检查全部成功。主目录已快进至同一 SHA。
+- 修复解码视图拼接误报；各层独立匹配、正式记录保留字段边界。136 主分支兼容 / 211 升级测试成功（各跳过 2 项）。
+- 继续复核并写入 3 项：确认就业网 RAG 实习工具的校园用途；确认 NLP fork 的课程作业增量，仅映射有公开提交证据的账号；Jetson master 分支补读后仍缺学校/课程依据，保留 candidate。
+- 私有复核目录 review-continuation-20260906 的首批 10 个产物完整扫描无阻断模式命中，78 条提醒保留研究上下文。保存完整源码/树哈希及阅读范围，未执行第三方代码。
+- 真实 worker 经 SIGINT 以 130 退出，3 条意见写入后均回读核对，SQLite integrity_check=ok，再从同一数据库恢复完整队列。阶段快照 complete 27,113、pending 72,448、未完成分页 1,518；补漏 0/2，promotion_ready=false。
+- 与 main 同步仅有完成记录的历史段落冲突，保留升级分支的已核验时间线，并记录本次主分支合并结果。没有改动 v0.2 构建行为或提前入库。
+
+## 增量复核顺序修复
+
+- 真实队列暴露先复核、后 metadata 刷新会新建同一 scoped-contributors-review 待办；现显式贡献者复核即创建或更新完成状态。隔离测试覆盖关闭重开及重复 metadata 刷新，且仍不创建上游 contributors 任务。
+- 212 项单元测试成功（2 项跳过）；check、strict privacy-scan、public-check 成功。
+- 仅重放已有 NLP fork 的原复核证据，数据库回读 scoped review=complete，integrity_check=ok；worker 从同一数据库恢复。此次 4 条复核写入涉及 3 个实体。
+- 私有继续复核报告与哈希清单已保存于 .work/discovery/review-continuation-20260906/；17 个产物，共 7358051 字节，完整扫描无阻断模式命中；八份旧批次哈希保持不变。
+- 观察快照：complete 27164，pending 72789，未完成分页 1557，补漏 0/2。普查未完成，不提前正式入库、合并完整 v0.2 或发布 Pages。
+
+## 继续执行：接口恢复与重复来源核查
+
+- 用户继续指令后读取真实状态：原 worker 因 graphql-unavailable 在 processed=2623 后停止。公开只读 GraphQL 查询成功后，执行 README 批次，正常退出 processed=200、blocked=null；状态净增 complete 64、missing 111，不把执行计数描述为 200 个成功读取或独立项目。
+- 四条复核意见已写入并从 SQLite 回读：校园课程论文 LaTeX 模板 confirmed；完整树仅两行自动生成 README 的占位仓库 excluded；两个实习 RAG 仓库保留 confirmed，但固定提交及全部 25 文件一致，均标记不作独立项目计数，保留两个稳定来源 ID。
+- SQLite integrity_check=ok，完整队列已从同一数据库恢复；旧八份批次哈希保持不变。私有研究区 review-next-20260906 保存原文定位、报告和 16 文件清单（80542 字节），完整扫描无阻断模式命中。
+- 状态快照 complete 28011、pending 80292、未完成分页 1934；补漏 0/2，promotion_ready=false。正式入库与 Pages 仍等待完成条件。
+- 本阶段只改复核状态及完成记录，没有修改生产代码；保留既有 212 项测试与跨平台 CI 验证结果，不将此前测试冒称本次重新运行。
+
+## 后台内存检查与 README 缓存清理
+
+- 对实际 PID 95269 进行只读检查：运行约 9–12 分钟期间，macOS footprint 为 23 MB、报告峰值 23 MB。30 秒三次 RSS 采样为 18,784 / 19,424 / 19,504 KiB；含当时 gh 子进程的 RSS 合计 58,416 / 59,312 / 58,976 KiB。短时采样未证明长期无泄漏，也未观察到失控增长。
+- 隔离复现发现 readme_batch 的提前返回跳过 Rows.release：三个私有仓库批次各 8 条，缓存逐批为 8/16/24 条。属于跨批次缓存保留，可持续到其他清理路径或进程退出。
+- 改为 finally 清理，覆盖正常、提前返回与异常路径；回归验证连续三批缓存和原文副本均清空，24 条已提交受限状态保留，数据库重开后状态及原分页断点不变。
+- 213 项测试成功（2 项跳过），check、strict privacy-scan、public-check 成功。没有声称已经完成长时压力验证。SQLite 临时内存及整段 HTTP 响应仍可能产生峰值，当前未加入 RSS 硬上限。
+
+- 实际 worker 已 SIGINT 正常返回 130，最终 JSON 确认 interrupted；只读 integrity_check=ok。随后使用修复代码从相同数据库续跑，未重置或丢弃待办。
