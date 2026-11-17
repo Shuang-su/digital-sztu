@@ -1,12 +1,14 @@
 # 校园资料选录
 
-本目录按所引来源的文字整理二十六个小范围条目；原十九条核验日期为2026-10-05，2026-10-30新增三条，2026-11-17再新增四条。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
+本目录按所引来源的文字整理三十七个小范围条目；原十九条核验日期为2026-10-05，2026-10-30新增三条，2026-11-17新增四条，2026-11-18再新增十一条。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
 
 | 条目 | 分类 | 阅读稿 |
 | --- | --- | --- |
 | 前哨站控制程序的功能自述 | 校园项目资料 | [阅读](campus-projects/knowledge-outpost-readme-986698035.md) |
 | 视觉伺服项目 README 的课程关联自述 | 课程资料 | [阅读](course-materials/knowledge-visual-servo-readme-1127193840.md) |
 | 使用 Vue 复刻 SZTU 官网的练习自述 | 校园项目资料 | [阅读](campus-projects/knowledge-vue-campus-practice-1187268844.md) |
+| MIDOG 2025 Track 1 挑战仓库的自述 | 校园项目资料 | [阅读](campus-projects/knowledge-midog-2025-1047741221.md) |
+| 外骨骼实验室网站对所属学校与学院的自述 | 校园项目资料 | [阅读](campus-projects/knowledge-exoskeleton-lab-1396843667.md) |
 | alg 中的 SZTU 算法课程作业目录 | 课程资料 | [阅读](course-materials/knowledge-alg-course-readme-1058351537.md) |
 | 自述为 SZTU 操作系统课程的实验说明 | 课程资料 | [阅读](course-materials/knowledge-operating-system-readme-785743184.md) |
 | 自述为 SZTU 数据结构和算法 OJ 的部分参考答案 | 课程资料 | [阅读](course-materials/knowledge-data-structures-oj-readme-704805502.md) |
@@ -15,6 +17,15 @@
 | 自述派生自两份公开作业的星环调度迭代记录 | 课程资料 | [阅读](course-materials/knowledge-xinghuan-wswjah-1459677763.md) |
 | 自述为 SZTU 课程论文 LaTeX 空白模板的资料 | 课程资料 | [阅读](course-materials/knowledge-course-report-latex-template-1257255255.md) |
 | 《课程体系》页面所述的深圳技术大学与顺丰课程分工 | 课程资料 | [阅读](course-materials/knowledge-sf-curriculum-page.md) |
+| 自述为深圳技术大学物联网通信课程实验的仓库 | 课程资料 | [阅读](course-materials/knowledge-iot-lab-721226775.md) |
+| 自述为深圳技术大学数据结构大作业的三角网络五子棋 | 课程资料 | [阅读](course-materials/knowledge-gomoku-653059873.md) |
+| 自述为深圳技术大学 Java 大作业的仓库 | 课程资料 | [阅读](course-materials/knowledge-ascentsys-java-897852734.md) |
+| 健康与环境工程学院「数据库原理」课程设计的自述 | 课程资料 | [阅读](course-materials/knowledge-attendance-face-1259341640.md) |
+| 2025 年 SZTU NLP 课程资料与作业的自述 | 课程资料 | [阅读](course-materials/knowledge-nlp-cluster-1071328640.md) |
+| 标题自述为 SZTU 人工智能数学基础作业的仓库 | 课程资料 | [阅读](course-materials/knowledge-machine-learning-1069218350.md) |
+| 自述为 SZTU 面向对象程序设计 OJ 的题单 | 课程资料 | [阅读](course-materials/knowledge-cpp-oj-299639266.md) |
+| 《医学成像原理及技术》课程设计 MRI 仿真系统的自述 | 课程资料 | [阅读](course-materials/knowledge-mri-emulator-1138335709.md) |
+| IBW0009 机器人与具身技能技术课程主页的自述 | 课程资料 | [阅读](course-materials/knowledge-robotintelli-1174027781.md) |
 | SZTU iCampus 前端的校园用途说明 | 校园工具资料 | [阅读](campus-tools/knowledge-icampus-frontend-1106154178.md) |
 | 若干成绩查询小工具的说明与共享脚本观察 | 校园工具资料 | [阅读](campus-tools/knowledge-get-grade-cluster-1140600434.md) |
 | 深圳技术大学2025—2026学年度页面入口 | 校园网页目录 | [阅读](campus-page-directory/knowledge-sztu-year-page-2025-2026.md) |
@@ -38,5 +49,7 @@
 [本次三条新增资料的结构化清单](github-materials-20261030.jsonl)仅对应2026-10-30批次，非正式档案或全目录导出；每行保留来源版本限制和未知日期。
 
 [本次四条新增资料的结构化清单](github-materials-20261117.jsonl)仅对应2026-11-17批次，非正式档案或全目录导出；每行保留来源版本限制和未知日期。
+
+[本次十一条新增资料的结构化清单](github-materials-20261118.jsonl)仅对应2026-11-18批次，非正式档案或全目录导出；每行保留来源版本限制和未知日期。
 
 [返回项目首页](../../README.md)
