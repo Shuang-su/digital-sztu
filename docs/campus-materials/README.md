@@ -1,6 +1,6 @@
 # 校园资料选录
 
-本目录按所引来源的文字整理二十二个小范围条目；原十九条核验日期为2026-10-05，本次新增三条为2026-10-30。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
+本目录按所引来源的文字整理二十六个小范围条目；原十九条核验日期为2026-10-05，2026-10-30新增三条，2026-11-17再新增四条。它不是学校官方项目名录或全量校园普查结果；各条目的归纳均保留来源限定。
 
 | 条目 | 分类 | 阅读稿 |
 | --- | --- | --- |
@@ -10,9 +10,13 @@
 | alg 中的 SZTU 算法课程作业目录 | 课程资料 | [阅读](course-materials/knowledge-alg-course-readme-1058351537.md) |
 | 自述为 SZTU 操作系统课程的实验说明 | 课程资料 | [阅读](course-materials/knowledge-operating-system-readme-785743184.md) |
 | 自述为 SZTU 数据结构和算法 OJ 的部分参考答案 | 课程资料 | [阅读](course-materials/knowledge-data-structures-oj-readme-704805502.md) |
+| 数据结构课程设计「星环算力平台调度」的作业自述 | 课程资料 | [阅读](course-materials/knowledge-xinghuan-shuang-su-1455290438.md) |
+| 「星环算力平台调度」凹分结果的分享自述 | 课程资料 | [阅读](course-materials/knowledge-xinghuan-misuzu-1454251075.md) |
+| 自述派生自两份公开作业的星环调度迭代记录 | 课程资料 | [阅读](course-materials/knowledge-xinghuan-wswjah-1459677763.md) |
 | 自述为 SZTU 课程论文 LaTeX 空白模板的资料 | 课程资料 | [阅读](course-materials/knowledge-course-report-latex-template-1257255255.md) |
 | 《课程体系》页面所述的深圳技术大学与顺丰课程分工 | 课程资料 | [阅读](course-materials/knowledge-sf-curriculum-page.md) |
 | SZTU iCampus 前端的校园用途说明 | 校园工具资料 | [阅读](campus-tools/knowledge-icampus-frontend-1106154178.md) |
+| 若干成绩查询小工具的说明与共享脚本观察 | 校园工具资料 | [阅读](campus-tools/knowledge-get-grade-cluster-1140600434.md) |
 | 深圳技术大学2025—2026学年度页面入口 | 校园网页目录 | [阅读](campus-page-directory/knowledge-sztu-year-page-2025-2026.md) |
 | 科研与校企合作部的职责简介 | 校园机构资料 | [阅读](campus-institutions/knowledge-research-department-profile.md) |
 | 新材料与新能源学院概况中的成立年份 | 校园机构资料 | [阅读](campus-institutions/knowledge-nmne-college-profile.md) |
@@ -32,5 +36,7 @@
 条目依据所列版本中可核实的文字编写；网页可能随后更新。项目或课程的来源表述不等同于学校授权、实际运行或教学采用。日期缺口及功能限制见各条目。
 
 [本次三条新增资料的结构化清单](github-materials-20261030.jsonl)仅对应2026-10-30批次，非正式档案或全目录导出；每行保留来源版本限制和未知日期。
+
+[本次四条新增资料的结构化清单](github-materials-20261117.jsonl)仅对应2026-11-17批次，非正式档案或全目录导出；每行保留来源版本限制和未知日期。
 
 [返回项目首页](../../README.md)
